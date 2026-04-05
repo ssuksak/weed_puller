@@ -222,11 +222,11 @@ resize();
 
 // ============ WEED TYPES ============
 const TYPES = [
-  { id: 0, name: '민들레', color: '#8BC34A', inner: '#DCEDC8', face: 'angry', leaves: 5 },
-  { id: 1, name: '바랭이', color: '#42A5F5', inner: '#BBDEFB', face: 'surprised', leaves: 3 },
-  { id: 2, name: '쇠비름', color: '#EF5350', inner: '#FFCDD2', face: 'happy', leaves: 7 },
-  { id: 3, name: '명아주', color: '#FFA726', inner: '#FFE0B2', face: 'angry', leaves: 4 },
-  { id: 4, name: '질경이', color: '#AB47BC', inner: '#E1BEE7', face: 'surprised', leaves: 6 },
+  { id: 0, name: '민들레', color: '#66BB6A', inner: '#C8E6C9', accent: '#43A047', face: 'happy', leaves: 5, emoji: '🌿' },
+  { id: 1, name: '바랭이', color: '#42A5F5', inner: '#BBDEFB', accent: '#1E88E5', face: 'surprised', leaves: 4, emoji: '💧' },
+  { id: 2, name: '쇠비름', color: '#EF5350', inner: '#FFCDD2', accent: '#E53935', face: 'angry', leaves: 6, emoji: '🔥' },
+  { id: 3, name: '명아주', color: '#FFCA28', inner: '#FFF9C4', accent: '#F9A825', face: 'happy', leaves: 4, emoji: '⭐' },
+  { id: 4, name: '질경이', color: '#AB47BC', inner: '#E1BEE7', accent: '#8E24AA', face: 'surprised', leaves: 5, emoji: '🔮' },
 ];
 
 // ============ CELL ============
@@ -281,34 +281,56 @@ class Cell {
     const sx = (Math.random() - 0.5) * this.shake;
     const x = this.x + sx, y = this.y;
 
-    // 선택 하이라이트
+    // 선택 하이라이트 (글로우)
     if (this.selected) {
-      ctx.fillStyle = 'rgba(255,255,255,0.3)';
-      ctx.beginPath(); ctx.arc(x, y, r * 1.4, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+      const glow = ctx.createRadialGradient(x, y, r * 0.5, x, y, r * 1.5);
+      glow.addColorStop(0, 'rgba(255,255,255,0.4)');
+      glow.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath(); ctx.arc(x, y, r * 1.5, 0, Math.PI * 2); ctx.fill();
+      // 바운스 효과
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
       ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(x, y, r * 1.3, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath(); ctx.arc(x, y, r * 1.15 + Math.sin(this.wobble * 3) * 2, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
     }
 
-    // 그림자
-    ctx.fillStyle = 'rgba(0,0,0,0.1)';
-    ctx.beginPath(); ctx.ellipse(x, y + r * 0.6, r * 0.7, r * 0.2, 0, 0, Math.PI * 2); ctx.fill();
+    // 부드러운 그림자
+    ctx.fillStyle = 'rgba(0,0,0,0.08)';
+    ctx.beginPath(); ctx.ellipse(x + 1, y + r * 0.55, r * 0.65, r * 0.18, 0, 0, Math.PI * 2); ctx.fill();
 
-    // 잎사귀
+    // 잎사귀 (둥글고 귀엽게)
     const lc = this.type.leaves;
-    ctx.fillStyle = this.type.color;
+    const accent = this.type.accent || this.type.color;
     for (let i = 0; i < lc; i++) {
-      const a = (i / lc) * Math.PI * 2 + Math.sin(this.wobble + i) * 0.1;
-      ctx.save(); ctx.translate(x, y); ctx.rotate(a);
-      ctx.beginPath(); ctx.ellipse(r * 0.55, 0, r * 0.4, r * 0.15, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
+      const a = (i / lc) * Math.PI * 2 + Math.sin(this.wobble + i) * 0.12;
+      const leafDist = r * 0.5;
+      const lx = x + Math.cos(a) * leafDist;
+      const ly = y + Math.sin(a) * leafDist;
+      // 잎 그림자
+      ctx.fillStyle = accent;
+      ctx.globalAlpha *= 0.7;
+      ctx.beginPath(); ctx.ellipse(lx, ly, r * 0.28, r * 0.14, a, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = this.scale;
+      // 잎 본체
+      ctx.fillStyle = this.type.color;
+      ctx.beginPath(); ctx.ellipse(lx - 0.5, ly - 0.5, r * 0.26, r * 0.13, a, 0, Math.PI * 2); ctx.fill();
     }
 
-    // 몸체
+    // 몸체 (둥글고 빛나는 느낌)
+    // 외곽
+    ctx.fillStyle = accent;
+    ctx.beginPath(); ctx.arc(x, y, r * 0.46, 0, Math.PI * 2); ctx.fill();
+    // 메인 몸
     ctx.fillStyle = this.type.color;
-    ctx.beginPath(); ctx.arc(x, y, r * 0.48, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, r * 0.43, 0, Math.PI * 2); ctx.fill();
+    // 이너 하이라이트 (글로시)
     ctx.fillStyle = this.type.inner;
-    ctx.beginPath(); ctx.arc(x - r * 0.05, y - r * 0.05, r * 0.36, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x - r * 0.06, y - r * 0.08, r * 0.3, 0, Math.PI * 2); ctx.fill();
+    // 상단 빛 반사
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.beginPath(); ctx.ellipse(x - r * 0.05, y - r * 0.2, r * 0.2, r * 0.1, -0.2, 0, Math.PI * 2); ctx.fill();
 
     // 얼굴
     drawFace(this.type.face, x, y, r);
@@ -331,35 +353,74 @@ class Cell {
   }
 }
 
-// ============ FACES ============
+// ============ FACES (귀엽고 세련되게) ============
 function drawFace(type, x, y, r) {
-  const s = r;
+  const s = r * 0.9;
+  const eyeY = y - s * 0.08;
+  const eyeSpacing = s * 0.22;
+  const eyeR = s * 0.14;
+
+  // 공통: 큰 둥근 눈 (캐릭터감)
   if (type === 'angry') {
-    ctx.fillStyle = '#000';
-    ctx.fillRect(x - s * 0.28 - 1.5, y - s * 0.12 - 1, 3, 2.5);
-    ctx.fillRect(x + s * 0.28 - 1.5, y - s * 0.12 - 1, 3, 2.5);
-    ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(x - s * 0.4, y - s * 0.28); ctx.lineTo(x - s * 0.12, y - s * 0.2);
-    ctx.moveTo(x + s * 0.4, y - s * 0.28); ctx.lineTo(x + s * 0.12, y - s * 0.2);
-    ctx.stroke();
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(x - s * 0.15, y + s * 0.15); ctx.lineTo(x, y + s * 0.1); ctx.lineTo(x + s * 0.15, y + s * 0.15);
-    ctx.stroke();
-  } else if (type === 'happy') {
-    ctx.fillStyle = '#000';
-    ctx.beginPath(); ctx.arc(x - s * 0.22, y - s * 0.08, 2, Math.PI, 0); ctx.fill();
-    ctx.beginPath(); ctx.arc(x + s * 0.22, y - s * 0.08, 2, Math.PI, 0); ctx.fill();
-    ctx.strokeStyle = '#000'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.arc(x, y + s * 0.08, s * 0.15, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
-  } else if (type === 'surprised') {
+    // 흰자
     ctx.fillStyle = '#FFF';
-    ctx.beginPath(); ctx.arc(x - s * 0.22, y - s * 0.08, 3, 0, Math.PI * 2); ctx.arc(x + s * 0.22, y - s * 0.08, 3, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#000';
-    ctx.beginPath(); ctx.arc(x - s * 0.22, y - s * 0.08, 1.5, 0, Math.PI * 2); ctx.arc(x + s * 0.22, y - s * 0.08, 1.5, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#000'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.arc(x, y + s * 0.12, 3, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(x - eyeSpacing, eyeY, eyeR, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + eyeSpacing, eyeY, eyeR, 0, Math.PI * 2); ctx.fill();
+    // 눈동자
+    ctx.fillStyle = '#333';
+    ctx.beginPath(); ctx.arc(x - eyeSpacing, eyeY + 1, eyeR * 0.6, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + eyeSpacing, eyeY + 1, eyeR * 0.6, 0, Math.PI * 2); ctx.fill();
+    // 하이라이트
+    ctx.fillStyle = '#FFF';
+    ctx.beginPath(); ctx.arc(x - eyeSpacing + 1, eyeY - 1, eyeR * 0.25, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + eyeSpacing + 1, eyeY - 1, eyeR * 0.25, 0, Math.PI * 2); ctx.fill();
+    // 화난 눈썹
+    ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x - eyeSpacing - eyeR, eyeY - eyeR * 1.2);
+    ctx.lineTo(x - eyeSpacing + eyeR * 0.5, eyeY - eyeR * 0.6);
+    ctx.moveTo(x + eyeSpacing + eyeR, eyeY - eyeR * 1.2);
+    ctx.lineTo(x + eyeSpacing - eyeR * 0.5, eyeY - eyeR * 0.6);
+    ctx.stroke();
+    // 입 (뾰로통)
+    ctx.strokeStyle = '#555'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(x, y + s * 0.18, s * 0.08, 1.1 * Math.PI, 1.9 * Math.PI); ctx.stroke();
+  } else if (type === 'happy') {
+    // 흰자
+    ctx.fillStyle = '#FFF';
+    ctx.beginPath(); ctx.arc(x - eyeSpacing, eyeY, eyeR, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + eyeSpacing, eyeY, eyeR, 0, Math.PI * 2); ctx.fill();
+    // 눈동자 (위를 봄 — 행복)
+    ctx.fillStyle = '#333';
+    ctx.beginPath(); ctx.arc(x - eyeSpacing, eyeY - 1, eyeR * 0.55, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + eyeSpacing, eyeY - 1, eyeR * 0.55, 0, Math.PI * 2); ctx.fill();
+    // 하이라이트
+    ctx.fillStyle = '#FFF';
+    ctx.beginPath(); ctx.arc(x - eyeSpacing + 1, eyeY - 2, eyeR * 0.25, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + eyeSpacing + 1, eyeY - 2, eyeR * 0.25, 0, Math.PI * 2); ctx.fill();
+    // 웃는 입
+    ctx.strokeStyle = '#555'; ctx.lineWidth = 1.2; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(x, y + s * 0.12, s * 0.1, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke();
+    // 볼터치
+    ctx.fillStyle = 'rgba(255,150,150,0.3)';
+    ctx.beginPath(); ctx.arc(x - s * 0.32, y + s * 0.1, s * 0.08, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + s * 0.32, y + s * 0.1, s * 0.08, 0, Math.PI * 2); ctx.fill();
+  } else if (type === 'surprised') {
+    // 흰자 (더 크게)
+    ctx.fillStyle = '#FFF';
+    ctx.beginPath(); ctx.arc(x - eyeSpacing, eyeY, eyeR * 1.1, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + eyeSpacing, eyeY, eyeR * 1.1, 0, Math.PI * 2); ctx.fill();
+    // 눈동자 (작게 — 놀란 느낌)
+    ctx.fillStyle = '#333';
+    ctx.beginPath(); ctx.arc(x - eyeSpacing, eyeY, eyeR * 0.45, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + eyeSpacing, eyeY, eyeR * 0.45, 0, Math.PI * 2); ctx.fill();
+    // 하이라이트
+    ctx.fillStyle = '#FFF';
+    ctx.beginPath(); ctx.arc(x - eyeSpacing + 1, eyeY - 1.5, eyeR * 0.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + eyeSpacing + 1, eyeY - 1.5, eyeR * 0.2, 0, Math.PI * 2); ctx.fill();
+    // O 입
+    ctx.fillStyle = '#555';
+    ctx.beginPath(); ctx.ellipse(x, y + s * 0.18, s * 0.06, s * 0.08, 0, 0, Math.PI * 2); ctx.fill();
   }
 }
 
@@ -841,7 +902,7 @@ function drawBG() {
     // 이랑
     for (let r = 0; r < ROWS; r++) {
       const ry = gridY + r * cellH + cellH * 0.5;
-      bg.fillStyle = 'rgba(161,136,127,0.15)';
+      bg.fillStyle = 'rgba(255,255,255,0.08)';
       bg.beginPath(); bg.ellipse(bx + bW / 2, ry, bW / 2 - 4, cellH * 0.25, 0, 0, Math.PI * 2); bg.fill();
     }
     bgCacheKey = key;
