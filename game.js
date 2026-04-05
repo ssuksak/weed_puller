@@ -11,11 +11,16 @@ const AudioCtx = window.AudioContext || window.webkitAudioContext;
 let audioCtx = null, bgmGain = null, bgmPlaying = false, bgmInterval = null, bgmNextTime = 0, bgmIdx = 0;
 
 function initAudio() {
-  if (audioCtx) return;
-  audioCtx = new AudioCtx();
-  bgmGain = audioCtx.createGain();
-  bgmGain.gain.setValueAtTime(0.07, audioCtx.currentTime);
-  bgmGain.connect(audioCtx.destination);
+  if (!audioCtx) {
+    audioCtx = new AudioCtx();
+    bgmGain = audioCtx.createGain();
+    bgmGain.gain.setValueAtTime(0.07, audioCtx.currentTime);
+    bgmGain.connect(audioCtx.destination);
+  }
+  // 모바일에서 suspended 상태 해제
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
 }
 
 // 🎵 박진감 BGM — 메인 멜로디 + 베이스 + 드럼
@@ -42,7 +47,9 @@ let bgmBassIdx = 0, bgmBassNext = 0;
 let bgmDrumNext = 0, bgmDrumBeat = 0;
 
 function startBGM() {
-  if (bgmPlaying) return; bgmPlaying = true; bgmIdx = 0; bgmBassIdx = 0; bgmDrumBeat = 0;
+  if (bgmPlaying) return;
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  bgmPlaying = true; bgmIdx = 0; bgmBassIdx = 0; bgmDrumBeat = 0;
   bgmNextTime = audioCtx.currentTime;
   bgmBassNext = audioCtx.currentTime;
   bgmDrumNext = audioCtx.currentTime;
@@ -115,6 +122,7 @@ function stopBGM() { bgmPlaying = false; clearTimeout(bgmInterval); }
 
 function sfx(type, extra) {
   if (!audioCtx) return;
+  if (audioCtx.state === 'suspended') audioCtx.resume();
   const now = audioCtx.currentTime;
   const mk = () => { const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); return {o,g}; };
 
