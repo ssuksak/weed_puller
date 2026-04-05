@@ -186,8 +186,13 @@ let gameRunning = false, gameOver = false;
 let pullCount = 0, elapsed = 0;
 let feverMode = false, feverTimer = 0;
 let screenShake = 0, shakeX = 0, shakeY = 0;
-let animating = false; // 낙하/연쇄 애니메이션 중
-let animTimeout = 0; // animating 안전장치 타이머
+let animating = false;
+let animTimeout = 0;
+
+// 폭탄 시스템
+let bomb = null; // { x, y, taps, maxTaps, timer, maxTimer, shake }
+let bombSpawnTimer = 0;
+let bombInterval = 15; // 첫 폭탄 15초 후, 점점 짧아짐
 let timeLeft = 60; // 60초 타임어택
 let timerInterval = null;
 
@@ -246,10 +251,8 @@ class Cell {
     this.wobble = Math.random() * Math.PI * 2;
     this.removing = false;
     this.removeAnim = 0;
-    this.selected = false; // 하이라이트
+    this.selected = false;
     this.shake = 0;
-    this.taps = 0; // 연타용 (혼자일 때 3탭 필요)
-    this.maxTaps = 3;
   }
 
   update(dt) {
@@ -375,16 +378,6 @@ class Cell {
 
     // --- 표정 ---
     drawFace(t.expr, x, y, faceR);
-
-    // 연타 진행도 바 (혼자일 때)
-    if (this.taps > 0 && this.taps < this.maxTaps) {
-      const barW = r * 1.4, barH = 3;
-      const bx2 = x - barW / 2, by2 = y + r * 0.7;
-      ctx.fillStyle = 'rgba(0,0,0,0.3)';
-      ctx.fillRect(bx2, by2, barW, barH);
-      ctx.fillStyle = this.taps >= 2 ? '#4CAF50' : '#FF9800';
-      ctx.fillRect(bx2, by2, barW * (this.taps / this.maxTaps), barH);
-    }
 
     ctx.restore();
   }
@@ -755,7 +748,137 @@ function showFB(x, y, text, color, size = 22) {
 }
 function triggerShake(n) { screenShake = n; }
 
-// ============ INPUT (스와이프 + 연타 하이브리드) ============
+// ============ BOMB SYSTEM ============
+function spawnBomb() {
+  if (bomb) return; // 이미 폭탄 있으면 스킵
+  const bx = gridX + Math.random() * (cellW * COLS - 40) + 20;
+  const by = gridY + Math.random() * (cellH * ROWS - 40) + 20;
+  const difficulty = Math.min(Math.floor(elapsed / 30), 5); // 30초마다 난이도 증가
+  bomb = {
+    x: bx, y: by,
+    taps: 0,
+    maxTaps: 5 + difficulty * 2, // 5→7→9→11...
+    timer: 4 - difficulty * 0.3, // 4초→3.4→2.8...
+    maxTimer: 4 - difficulty * 0.3,
+    shake: 0,
+    scale: 0, // 등장 애니메이션
+  };
+  sfx('chain', 3);
+  showFB(bx, by - 30, '🧨 폭탄!', '#FF1744', 26);
+}
+
+function tapBomb() {
+  if (!bomb) return;
+  bomb.taps++;
+  bomb.shake = 8;
+  const progress = bomb.taps / bomb.maxTaps;
+  sfx('pop', Math.floor(progress * 5));
+  // 해체 파티클
+  burst(bomb.x + (Math.random()-0.5)*20, bomb.y + (Math.random()-0.5)*20, '#FF9800', 2);
+
+  if (bomb.taps >= bomb.maxTaps) {
+    // 해체 성공!
+    const pts = 50 + Math.floor(bomb.timer * 20); // 남은 시간 보너스
+    score += pts;
+    combo += 5;
+    if (combo > maxCombo) maxCombo = combo;
+    showFB(bomb.x, bomb.y - 30, `💪 해체! +${pts}`, '#4CAF50', 28);
+    sfx('bigpop');
+    burst(bomb.x, bomb.y, '#4CAF50', 15);
+    burst(bomb.x, bomb.y, '#FFD700', 10);
+    triggerShake(8);
+    bomb = null;
+    updateHUD();
+  }
+}
+
+function updateBomb(dt) {
+  if (!bomb) return;
+  bomb.scale = Math.min(1, bomb.scale + dt * 5);
+  bomb.timer -= dt;
+  bomb.shake *= 0.9;
+
+  // 남은 시간 적을수록 심장박동
+  if (bomb.timer < 2) {
+    bomb.shake = Math.sin(Date.now() * 0.03) * (3 - bomb.timer) * 2;
+  }
+
+  if (bomb.timer <= 0) {
+    // 폭발! 게임 오버!
+    sfx('miss');
+    burst(bomb.x, bomb.y, '#FF1744', 20);
+    burst(bomb.x, bomb.y, '#FF9100', 15);
+    triggerShake(15);
+    showFB(bomb.x, bomb.y - 30, '💥 펑!', '#FF1744', 36);
+    bomb = null;
+    setTimeout(() => endGame(), 500);
+  }
+}
+
+function drawBomb() {
+  if (!bomb) return;
+  ctx.save();
+  const b = bomb;
+  const sc = b.scale;
+  const sx = (Math.random()-0.5) * b.shake;
+  const bx = b.x + sx, by = b.y;
+  const r = 28 * sc;
+
+  // 위험 글로우 (시간에 따라 강해짐)
+  const danger = 1 - (b.timer / b.maxTimer);
+  ctx.fillStyle = `rgba(255,0,0,${0.1 + danger * 0.2})`;
+  ctx.beginPath(); ctx.arc(bx, by, r * 2 + Math.sin(Date.now()*0.01)*5, 0, Math.PI*2); ctx.fill();
+
+  // 폭탄 몸체
+  ctx.fillStyle = '#424242';
+  ctx.beginPath(); ctx.arc(bx, by, r, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#616161';
+  ctx.beginPath(); ctx.arc(bx - r*0.1, by - r*0.1, r*0.85, 0, Math.PI*2); ctx.fill();
+
+  // 반사광
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.beginPath(); ctx.ellipse(bx - r*0.15, by - r*0.3, r*0.35, r*0.15, -0.2, 0, Math.PI*2); ctx.fill();
+
+  // 심지
+  ctx.strokeStyle = '#8D6E63'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(bx, by - r); ctx.quadraticCurveTo(bx + 5, by - r - 8, bx + 2, by - r - 14); ctx.stroke();
+
+  // 불꽃 (깜빡임)
+  if (Math.sin(Date.now() * 0.015) > -0.3) {
+    ctx.fillStyle = '#FF9800';
+    ctx.beginPath(); ctx.arc(bx + 2, by - r - 16, 4 + Math.sin(Date.now()*0.02)*2, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#FFEB3B';
+    ctx.beginPath(); ctx.arc(bx + 2, by - r - 17, 2, 0, Math.PI*2); ctx.fill();
+  }
+
+  // 카운트다운 숫자
+  ctx.fillStyle = '#FFF';
+  ctx.font = `bold ${r * 0.8}px sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(Math.ceil(b.timer), bx, by + 2);
+
+  // 진행도 바
+  const barW = r * 2.5, barH = 6;
+  const barX = bx - barW/2, barY = by + r + 10;
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.beginPath();
+  ctx.roundRect?.(barX, barY, barW, barH, 3) || ctx.rect(barX, barY, barW, barH);
+  ctx.fill();
+  const prog = b.taps / b.maxTaps;
+  ctx.fillStyle = prog > 0.7 ? '#4CAF50' : prog > 0.4 ? '#FF9800' : '#F44336';
+  ctx.beginPath();
+  ctx.roundRect?.(barX, barY, barW * prog, barH, 3) || ctx.rect(barX, barY, barW * prog, barH);
+  ctx.fill();
+
+  // 연타 힌트
+  ctx.fillStyle = 'rgba(255,255,255,0.8)';
+  ctx.font = `bold 11px sans-serif`;
+  ctx.fillText(`👆 ${b.taps}/${b.maxTaps}`, bx, barY + barH + 14);
+
+  ctx.restore();
+}
+
+// ============ INPUT ============
 let swipePath = []; // 스와이프 경로 [{c,r}, ...]
 let swipeTypeId = -1; // 스와이프 중인 잡초 타입
 let swiping = false;
@@ -790,9 +913,16 @@ function clearSwipeHighlight() {
 
 function onDown(e) {
   if (!gameRunning) return;
-  // animating 중이어도 단독 탭(연타)은 허용
   e.preventDefault?.();
   const { x, y } = pos(e);
+
+  // 폭탄 터치 체크 (최우선!)
+  if (bomb && Math.sqrt((x - bomb.x)**2 + (y - bomb.y)**2) < 50) {
+    tapBomb();
+    swiping = false;
+    return;
+  }
+
   const cell = findCellAt(x, y);
   if (!cell) return;
 
@@ -847,36 +977,15 @@ function onUp(e) {
       // 자동 연쇄 없음! 떨어지기만 하고 끝
       setTimeout(() => { animating = false; }, 400);
     }, 250);
-  } else if (swipePath.length === 2) {
-    // 2개는 부족! 흔들기만
-    swipePath.forEach(({ c, r }) => { if (grid[c] && grid[c][r]) grid[c][r].shake = 5; });
-    sfx('miss');
-    clearSwipeHighlight();
-  } else if (swipePath.length === 1) {
-    // 단독 탭 → 연타 모드
-    const { c, r } = swipePath[0];
-    const g = grid[c][r];
-    if (g && !g.removing) {
-      {
-        // 연타!
-        g.taps++;
-        g.shake = 6;
-        sfx('pop', g.taps);
-        showFB(g.x, g.y - g.r, `${g.taps}/${g.maxTaps}`, '#FFF', 14);
-
-        if (g.taps >= g.maxTaps) {
-          // 연타 완료 → 뽑힘!
-          g.taps = 0;
-          currentChain = 0;
-          removeGroup([{ c, r }], 0);
-          animating = true;
-          clearSwipeHighlight();
-          setTimeout(() => {
-            dropColumns();
-            setTimeout(() => { animating = false; }, 350);
-          }, 250);
-        }
-      }
+  } else if (swipePath.length <= 2) {
+    // 2개 이하 → 폭탄 터치 체크!
+    const { x, y } = pos(e);
+    if (bomb && Math.sqrt((x - bomb.x)**2 + (y - bomb.y)**2) < 50) {
+      tapBomb();
+    } else if (swipePath.length === 2) {
+      // 2개 스와이프 → 부족! 흔들기만
+      swipePath.forEach(({ c, r }) => { if (grid[c] && grid[c][r]) grid[c][r].shake = 5; });
+      sfx('miss');
     }
     clearSwipeHighlight();
   } else {
@@ -1048,6 +1157,19 @@ function loop(ts) {
   updateParticles(dt);
   drawParticles();
   if (swiping) drawSwipeLine();
+
+  // 폭탄
+  if (gameRunning) {
+    bombSpawnTimer += dt;
+    if (!bomb && bombSpawnTimer >= bombInterval) {
+      bombSpawnTimer = 0;
+      bombInterval = Math.max(8, 15 - elapsed * 0.08); // 점점 자주 등장
+      spawnBomb();
+    }
+    updateBomb(dt);
+  }
+  drawBomb();
+
   if (gameRunning) updateHUD();
 
   ctx.restore();
@@ -1072,6 +1194,7 @@ function startCountdown() {
   particles = []; score = 0; combo = 0; maxCombo = 0; chainLevel = 0;
   pullCount = 0; elapsed = 0; feverMode = false; gameOver = false;
   animating = false; timeLeft = 60; isNewRecord = false; currentChain = 0;
+  bomb = null; bombSpawnTimer = 0; bombInterval = 15; animTimeout = 0;
   document.getElementById('hud-score').style.color = '';
   document.getElementById('fever-overlay').classList.remove('active');
   document.getElementById('fever-overlay').style.boxShadow = '';
