@@ -369,21 +369,21 @@ function initGrid() {
   for (let c = 0; c < COLS; c++) {
     grid[c] = [];
     for (let r = 0; r < ROWS; r++) {
-      grid[c][r] = new Cell(c, r, randomType());
-    }
-  }
-  // 초기 매치 제거 (시작부터 매치 없게)
-  let safety = 0;
-  while (hasAnyMatch() && safety < 100) {
-    for (let c = 0; c < COLS; c++) {
-      for (let r = 0; r < ROWS; r++) {
-        const group = findGroup(c, r);
-        if (group.length >= 3) {
-          grid[c][r] = new Cell(c, r, randomType());
-        }
+      // 인접한 같은 타입이 3개 이상 안 되도록 배치
+      let typeId = randomType();
+      let attempts = 0;
+      while (attempts < 10) {
+        // 왼쪽 2개, 위쪽 2개 체크
+        const leftMatch = c >= 2 && grid[c-1][r] && grid[c-2][r] &&
+          grid[c-1][r].typeId === typeId && grid[c-2][r].typeId === typeId;
+        const topMatch = r >= 2 && grid[c][r-1] && grid[c][r-2] &&
+          grid[c][r-1].typeId === typeId && grid[c][r-2].typeId === typeId;
+        if (!leftMatch && !topMatch) break;
+        typeId = randomType();
+        attempts++;
       }
+      grid[c][r] = new Cell(c, r, typeId);
     }
-    safety++;
   }
 }
 
@@ -393,8 +393,9 @@ function randomType() {
 
 function hasAnyMatch() {
   for (let c = 0; c < COLS; c++) {
-    for (let r = 0; r < ROWS; r++) {
-      if (grid[c][r] && findGroup(c, r).length >= 2) return true;
+    if (!grid[c]) continue;
+    for (let r = 0; r < grid[c].length; r++) {
+      if (grid[c][r] && !grid[c][r].removing && findGroup(c, r).length >= 2) return true;
     }
   }
   return false;
@@ -412,7 +413,8 @@ function findGroup(col, row) {
     const [c, r] = queue.shift();
     const key = `${c},${r}`;
     if (visited.has(key)) continue;
-    if (c < 0 || c >= COLS || r < 0 || r >= ROWS) continue;
+    if (c < 0 || c >= COLS || r < 0) continue;
+    if (!grid[c] || r >= grid[c].length) continue;
     if (!grid[c][r] || grid[c][r].removing) continue;
     if (grid[c][r].typeId !== typeId) continue;
 
@@ -476,11 +478,9 @@ function removeGroup(group, chain) {
 function dropColumns() {
   let dropped = false;
   for (let c = 0; c < COLS; c++) {
-    // 제거된 셀 정리
-    grid[c] = grid[c].filter(cell => !cell.removing || cell.removeAnim < 1);
-    const removed = grid[c].filter(cell => cell.removing);
+    if (!grid[c]) { grid[c] = []; continue; }
 
-    // 실제 제거
+    // 실제 제거 (removeAnim이 진행된 것들)
     grid[c] = grid[c].filter(cell => !cell.removing);
 
     // 빈 칸 수
