@@ -789,14 +789,15 @@ function clearSwipeHighlight() {
 }
 
 function onDown(e) {
-  if (!gameRunning || animating) return;
+  if (!gameRunning) return;
+  // animating 중이어도 단독 탭(연타)은 허용
   e.preventDefault?.();
   const { x, y } = pos(e);
   const cell = findCellAt(x, y);
   if (!cell) return;
 
   const { c, r } = cell;
-  const g = grid[c][r];
+  const g = grid[c] && grid[c][r];
   if (!g || g.removing) return;
 
   swiping = true;
@@ -808,7 +809,7 @@ function onDown(e) {
 }
 
 function onMove(e) {
-  if (!swiping || !gameRunning || animating) return;
+  if (!swiping || !gameRunning) return;
   e.preventDefault?.();
   const { x, y } = pos(e);
   const cell = findCellAt(x, y);
@@ -831,11 +832,11 @@ function onMove(e) {
 }
 
 function onUp(e) {
-  if (!swiping || !gameRunning || animating) return;
+  if (!swiping || !gameRunning) return;
   e.preventDefault?.();
   swiping = false;
 
-  if (swipePath.length >= 3) {
+  if (swipePath.length >= 3 && !animating) {
     // 스와이프로 3개 이상 → 한꺼번에 터짐!
     currentChain = 0;
     removeGroup(swipePath, 0);
