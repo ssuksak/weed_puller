@@ -243,8 +243,101 @@ function sfx(type, extra) {
     const {o,g}=mk(); o.type='square'; o.frequency.setValueAtTime(200,now);
     g.gain.setValueAtTime(0.08,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.1);
     o.start(now); o.stop(now+0.1);
+  } else if (type === 'heartbeat') {
+    // 심장 쿵쿵 (위기 시)
+    [0, 0.15].forEach(delay => {
+      const {o,g}=mk(); o.type='sine';
+      o.frequency.setValueAtTime(60, now+delay);
+      o.frequency.exponentialRampToValueAtTime(30, now+delay+0.1);
+      g.gain.setValueAtTime(0.3, now+delay);
+      g.gain.exponentialRampToValueAtTime(0.01, now+delay+0.15);
+      o.start(now+delay); o.stop(now+delay+0.15);
+    });
+  } else if (type === 'survive') {
+    // 기사회생! 화려한 상승음
+    [392,440,523,587,659,784].forEach((f,i) => {
+      const {o,g}=mk(); o.type='triangle';
+      o.frequency.setValueAtTime(f, now+i*0.04);
+      g.gain.setValueAtTime(0.15, now+i*0.04);
+      g.gain.exponentialRampToValueAtTime(0.01, now+i*0.04+0.1);
+      o.start(now+i*0.04); o.stop(now+i*0.04+0.1);
+    });
+  } else if (type === 'newrecord') {
+    // 신기록!! 팡파레
+    [523,0,659,0,784,0,1046].forEach((f,i) => {
+      if (!f) return;
+      const {o,g}=mk(); o.type='square';
+      o.frequency.setValueAtTime(f, now+i*0.08);
+      g.gain.setValueAtTime(0.12, now+i*0.08);
+      g.gain.exponentialRampToValueAtTime(0.01, now+i*0.08+0.2);
+      o.start(now+i*0.08); o.stop(now+i*0.08+0.2);
+    });
+  } else if (type === 'wave') {
+    // 웨이브 전환
+    [440,523,659].forEach((f,i) => {
+      const {o,g}=mk(); o.type='triangle';
+      o.frequency.setValueAtTime(f, now+i*0.06);
+      g.gain.setValueAtTime(0.12, now+i*0.06);
+      g.gain.exponentialRampToValueAtTime(0.01, now+i*0.06+0.12);
+      o.start(now+i*0.06); o.stop(now+i*0.06+0.12);
+    });
+  } else if (type === 'badge') {
+    // 업적 달성
+    [784,988,1175].forEach((f,i) => {
+      const {o,g}=mk(); o.type='sine';
+      o.frequency.setValueAtTime(f, now+i*0.1);
+      g.gain.setValueAtTime(0.15, now+i*0.1);
+      g.gain.exponentialRampToValueAtTime(0.01, now+i*0.1+0.15);
+      o.start(now+i*0.1); o.stop(now+i*0.1+0.15);
+    });
   }
 }
+
+// ============ HIGH SCORE ============
+let highScore = parseInt(localStorage.getItem('weedpuller_highscore') || '0');
+let highSurvive = parseInt(localStorage.getItem('weedpuller_highsurvive') || '0');
+let isNewRecord = false;
+
+// ============ WAVE SYSTEM ============
+let wave = 1;
+let waveTimer = 0;
+const WAVE_DURATION = 12; // 12초마다 웨이브 증가
+let dangerLevel = 0; // 0~1 (채움률)
+let wasDanger = false; // 위기 상태였는지 (기사회생 체크용)
+let heartbeatTimer = 0;
+
+// ============ ACHIEVEMENTS ============
+const BADGES = [
+  { id: 'first_pull', name: '🌱 첫 수확', desc: '잡초 1개 뽑기', check: () => pullCount >= 1 },
+  { id: 'combo5', name: '🔥 콤보 입문', desc: '5 콤보 달성', check: () => maxCombo >= 5 },
+  { id: 'combo10', name: '💥 콤보 마스터', desc: '10 콤보 달성', check: () => maxCombo >= 10 },
+  { id: 'combo20', name: '🌪️ 콤보 신', desc: '20 콤보 달성', check: () => maxCombo >= 20 },
+  { id: 'score500', name: '⭐ 500점', desc: '500점 돌파', check: () => score >= 500 },
+  { id: 'score1000', name: '🌟 1000점', desc: '1000점 돌파', check: () => score >= 1000 },
+  { id: 'score3000', name: '💎 3000점', desc: '3000점 돌파', check: () => score >= 3000 },
+  { id: 'survive30', name: '⏱️ 30초', desc: '30초 생존', check: () => elapsed >= 30 },
+  { id: 'survive60', name: '⏱️ 1분', desc: '1분 생존', check: () => elapsed >= 60 },
+  { id: 'survive120', name: '🏆 2분', desc: '2분 생존', check: () => elapsed >= 120 },
+  { id: 'golden', name: '⭐ 골든 헌터', desc: '골든 잡초 뽑기', check: () => goldenCount >= 1 },
+  { id: 'survive_crisis', name: '💪 기사회생', desc: '위기에서 생존', check: () => surviveCount >= 1 },
+];
+let unlockedBadges = JSON.parse(localStorage.getItem('weedpuller_badges') || '[]');
+let badgeQueue = []; // 표시 대기중인 뱃지
+let goldenCount = 0, surviveCount = 0;
+
+function checkBadges() {
+  BADGES.forEach(b => {
+    if (!unlockedBadges.includes(b.id) && b.check()) {
+      unlockedBadges.push(b.id);
+      localStorage.setItem('weedpuller_badges', JSON.stringify(unlockedBadges));
+      badgeQueue.push(b);
+      sfx('badge');
+    }
+  });
+}
+
+let badgeShowTimer = 0;
+let currentBadge = null;
 
 // ============ STATE ============
 let plants = [], particles = [], holes = [];
@@ -647,6 +740,7 @@ function completePull(plant) {
     burst(plant.x, plant.y, '#FFB7C5', 8);
   } else if (plant.isGolden) {
     // 골든: 대박 점수 + 주변 잡초 전부 제거!
+    goldenCount++;
     const pts = 100 * Math.max(combo, 1);
     score += pts; pullCount++;
     combo += 3;
@@ -914,8 +1008,13 @@ function updateHUD() {
 
   const le=document.getElementById('hud-level');
   const surviveTime = Math.floor(elapsed);
-  le.textContent = `⏱ ${surviveTime}초 생존`;
+  le.textContent = `WAVE ${wave} · ${surviveTime}초`;
   le.classList.remove('hidden');
+
+  // 최고기록 실시간 표시
+  if (score > highScore) {
+    document.getElementById('hud-score').style.color = '#FFD700';
+  }
 }
 
 // ============ GAME LOOP ============
@@ -941,18 +1040,88 @@ function loop(ts) {
   if (gameRunning) {
     elapsed += dt;
 
-    // 스폰 속도: 시간 지날수록 빨라짐
+    // 웨이브 시스템
+    waveTimer += dt;
+    if (waveTimer >= WAVE_DURATION) {
+      waveTimer = 0;
+      wave++;
+      sfx('wave');
+      showFB(canvas.width/2 - 40, canvas.height * 0.4, `WAVE ${wave}`, '#FFF', 30);
+    }
+
+    // 스폰 속도: 웨이브마다 빨라짐
     spawnTimer += dt;
-    const rate = Math.max(0.8, 2.0 - elapsed * 0.015);
+    const rate = Math.max(0.3, 1.8 - wave * 0.15);
     if (spawnTimer > rate) { spawnTimer = 0; spawnPlant(); }
+
+    // 위기 감지 (심장박동)
+    const filled = plants.filter(p => !p.isPulled).length;
+    dangerLevel = filled / (COLS * ROWS);
+
+    if (dangerLevel >= 0.75) {
+      if (!wasDanger) wasDanger = true;
+      heartbeatTimer += dt;
+      if (heartbeatTimer > 0.8) {
+        heartbeatTimer = 0;
+        sfx('heartbeat');
+      }
+      // 위기 비네팅 효과
+      document.getElementById('fever-overlay').style.boxShadow = 'inset 0 0 100px rgba(255,0,0,0.4)';
+      document.getElementById('fever-overlay').classList.add('active');
+    } else {
+      if (wasDanger && dangerLevel < 0.4) {
+        // 기사회생!
+        wasDanger = false;
+        surviveCount++;
+        sfx('survive');
+        showFB(canvas.width/2 - 50, canvas.height * 0.35, '💪 기사회생!', '#4CAF50', 28);
+        score += 50;
+        updateHUD();
+      }
+      if (!feverMode) {
+        document.getElementById('fever-overlay').classList.remove('active');
+        document.getElementById('fever-overlay').style.boxShadow = '';
+      }
+      heartbeatTimer = 0;
+    }
 
     if (feverMode) {
       feverTimer -= dt;
       if (feverTimer <= 0) { feverMode = false; invalidateBgCache(); document.getElementById('fever-overlay').classList.remove('active'); }
     }
 
+    // 업적 체크 (2초마다)
+    if (Math.floor(elapsed) % 2 === 0 && Math.floor(elapsed) !== Math.floor(elapsed - dt)) {
+      checkBadges();
+    }
+
     // 게임 오버 체크
     checkGameOver();
+  }
+
+  // 뱃지 표시
+  if (!currentBadge && badgeQueue.length > 0) {
+    currentBadge = badgeQueue.shift();
+    badgeShowTimer = 3;
+  }
+  if (currentBadge) {
+    badgeShowTimer -= dt;
+    const alpha = badgeShowTimer > 2.5 ? (3 - badgeShowTimer) * 2 : badgeShowTimer > 0.5 ? 1 : badgeShowTimer * 2;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, alpha);
+    const bx = canvas.width / 2, by = canvas.height * 0.25;
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.beginPath();
+    bgRR(ctx, bx - 90, by - 20, 180, 50, 12);
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(currentBadge.name, bx, by + 2);
+    ctx.fillStyle = '#FFF';
+    ctx.font = '11px sans-serif';
+    ctx.fillText(currentBadge.desc, bx, by + 18);
+    ctx.restore();
+    if (badgeShowTimer <= 0) currentBadge = null;
   }
 
   plants.forEach(p => p.update(dt));
@@ -978,7 +1147,12 @@ function startCountdown() {
   plants=[]; particles=[]; holes=[]; occupied.clear();
   score=0; combo=0; maxCombo=0; elapsed=0;
   pullCount=0; flowerMissCount=0; feverMode=false; gameOver=false;
+  wave=1; waveTimer=0; dangerLevel=0; wasDanger=false; heartbeatTimer=0;
+  goldenCount=0; surviveCount=0; isNewRecord=false;
+  badgeQueue=[]; currentBadge=null; badgeShowTimer=0;
+  document.getElementById('hud-score').style.color='';
   document.getElementById('fever-overlay').classList.remove('active');
+  document.getElementById('fever-overlay').style.boxShadow='';
   invalidateBgCache(); updateHUD();
 
   const cd=document.getElementById('countdown');
@@ -1007,10 +1181,29 @@ function endGame() {
   gameOver = true;
   gameRunning = false; stopBGM(); sfx('end');
   document.getElementById('hud-timer').style.color = '';
+  document.getElementById('hud-score').style.color = '';
+  document.getElementById('fever-overlay').classList.remove('active');
+  document.getElementById('fever-overlay').style.boxShadow = '';
 
   const surviveTime = Math.floor(elapsed);
+
+  // 최고기록 체크
+  isNewRecord = score > highScore;
+  if (isNewRecord) {
+    highScore = score;
+    localStorage.setItem('weedpuller_highscore', highScore);
+  }
+  if (surviveTime > highSurvive) {
+    highSurvive = surviveTime;
+    localStorage.setItem('weedpuller_highsurvive', highSurvive);
+  }
+
+  // 마지막 업적 체크
+  checkBadges();
+
   let emoji, title;
-  if (surviveTime >= 120) { emoji='🏆'; title='잡초 마스터!'; }
+  if (isNewRecord) { emoji='🎉'; title='신기록!'; sfx('newrecord'); }
+  else if (surviveTime >= 120) { emoji='🏆'; title='잡초 마스터!'; }
   else if (surviveTime >= 60) { emoji='🌟'; title='잡초 전문가!'; }
   else if (surviveTime >= 30) { emoji='💪'; title='열심히 뽑았어요!'; }
   else { emoji='😅'; title='다시 도전!'; }
@@ -1027,9 +1220,31 @@ function endGame() {
     document.getElementById('stat-weeds').textContent=pullCount;
     document.getElementById('stat-combo').textContent=`x${maxCombo}`;
     document.getElementById('stat-miss').textContent=flowerMissCount;
-    // 생존시간도 표시
-    document.querySelector('.result-label').textContent=`점 · ${surviveTime}초 생존`;
+
+    const recordText = isNewRecord ? '🎉 신기록!' : `🏅 최고: ${highScore}점`;
+    document.querySelector('.result-label').textContent=`점 · WAVE ${wave} · ${surviveTime}초 생존`;
+
+    // 최고기록/공유 영역 업데이트
+    const extraEl = document.getElementById('result-extra');
+    if (extraEl) {
+      extraEl.innerHTML = `<div style="margin-bottom:12px;font-size:13px;color:#8B95A1">${recordText} · 최장 ${highSurvive}초</div>` +
+        `<div style="margin-bottom:12px;font-size:13px;color:#8B95A1">🏅 업적 ${unlockedBadges.length}/${BADGES.length}</div>` +
+        `<button id="btn-share" style="background:none;border:1px solid #E5E8EB;border-radius:12px;padding:10px 0;width:100%;font-size:14px;font-weight:600;color:#4E5968;cursor:pointer;margin-bottom:8px">📤 점수 공유하기</button>`;
+      document.getElementById('btn-share')?.addEventListener('click', shareScore);
+    }
   }, 500);
+}
+
+function shareScore() {
+  const surviveTime = Math.floor(elapsed);
+  const text = `🌿 잡초 뽑기\n⭐ ${score}점 · WAVE ${wave} · ${surviveTime}초 생존\n🔥 최대 콤보 x${maxCombo}\n\n도전해보세요! 👇\nhttps://ssuksak.github.io/weed_puller/`;
+  if (navigator.share) {
+    navigator.share({ text });
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => {
+      showFB(canvas.width/2 - 40, canvas.height*0.5, '📋 복사됨!', '#4CAF50', 20);
+    });
+  }
 }
 
 requestAnimationFrame(loop);
