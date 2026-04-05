@@ -14,7 +14,7 @@ function initAudio() {
   if (!audioCtx) {
     audioCtx = new AudioCtx();
     bgmGain = audioCtx.createGain();
-    bgmGain.gain.setValueAtTime(0.07, audioCtx.currentTime);
+    bgmGain.gain.setValueAtTime(0.35, audioCtx.currentTime);
     bgmGain.connect(audioCtx.destination);
   }
   // 모바일에서 suspended 상태 해제
@@ -61,59 +61,89 @@ function scheduleBGM() {
   const mel = feverMode ? BGM_FEVER_MELODY : BGM_MELODY;
   const tempo = feverMode ? 0.10 : 0.15;
 
-  // 멜로디
+  // 멜로디 (리드)
   while (bgmNextTime < audioCtx.currentTime + 0.5) {
     const [f, d] = mel[bgmIdx % mel.length];
     const o = audioCtx.createOscillator(), g = audioCtx.createGain();
     o.connect(g); g.connect(bgmGain);
     o.type = feverMode ? 'square' : 'triangle';
     o.frequency.setValueAtTime(f, bgmNextTime);
-    g.gain.setValueAtTime(0.12, bgmNextTime);
-    g.gain.exponentialRampToValueAtTime(0.01, bgmNextTime + d * tempo * 0.85);
+    g.gain.setValueAtTime(0.3, bgmNextTime);
+    g.gain.linearRampToValueAtTime(0.15, bgmNextTime + d * tempo * 0.3);
+    g.gain.exponentialRampToValueAtTime(0.01, bgmNextTime + d * tempo * 0.9);
     o.start(bgmNextTime); o.stop(bgmNextTime + d * tempo);
     bgmNextTime += d * tempo; bgmIdx++;
   }
 
-  // 베이스 (펄스)
+  // 베이스 (두꺼운 저음)
   const bassTempo = tempo * 4;
   while (bgmBassNext < audioCtx.currentTime + 0.5) {
     const [f, d] = BGM_BASS[bgmBassIdx % BGM_BASS.length];
+    // 메인 베이스
     const o = audioCtx.createOscillator(), g = audioCtx.createGain();
     o.connect(g); g.connect(bgmGain);
     o.type = 'sawtooth';
     o.frequency.setValueAtTime(f, bgmBassNext);
-    g.gain.setValueAtTime(0.06, bgmBassNext);
-    g.gain.exponentialRampToValueAtTime(0.01, bgmBassNext + d * bassTempo * 0.5);
-    o.start(bgmBassNext); o.stop(bgmBassNext + d * bassTempo * 0.6);
+    g.gain.setValueAtTime(0.2, bgmBassNext);
+    g.gain.exponentialRampToValueAtTime(0.02, bgmBassNext + d * bassTempo * 0.4);
+    o.start(bgmBassNext); o.stop(bgmBassNext + d * bassTempo * 0.5);
+    // 서브 베이스 (옥타브 아래)
+    const o2 = audioCtx.createOscillator(), g2 = audioCtx.createGain();
+    o2.connect(g2); g2.connect(bgmGain);
+    o2.type = 'sine';
+    o2.frequency.setValueAtTime(f * 0.5, bgmBassNext);
+    g2.gain.setValueAtTime(0.15, bgmBassNext);
+    g2.gain.exponentialRampToValueAtTime(0.01, bgmBassNext + d * bassTempo * 0.3);
+    o2.start(bgmBassNext); o2.stop(bgmBassNext + d * bassTempo * 0.4);
     bgmBassNext += d * bassTempo; bgmBassIdx++;
   }
 
-  // 드럼 (킥 + 하이햇)
+  // 드럼 (킥 + 스네어 + 하이햇)
   const drumTempo = tempo * 2;
   while (bgmDrumNext < audioCtx.currentTime + 0.5) {
-    const isKick = bgmDrumBeat % 2 === 0;
-    if (isKick) {
-      // 킥 드럼
+    const beat = bgmDrumBeat % 4;
+    if (beat === 0 || beat === 2) {
+      // 킥 드럼 (강하게)
       const o = audioCtx.createOscillator(), g = audioCtx.createGain();
       o.connect(g); g.connect(bgmGain);
       o.type = 'sine';
-      o.frequency.setValueAtTime(150, bgmDrumNext);
-      o.frequency.exponentialRampToValueAtTime(40, bgmDrumNext + 0.08);
-      g.gain.setValueAtTime(0.12, bgmDrumNext);
-      g.gain.exponentialRampToValueAtTime(0.01, bgmDrumNext + 0.1);
-      o.start(bgmDrumNext); o.stop(bgmDrumNext + 0.1);
+      o.frequency.setValueAtTime(180, bgmDrumNext);
+      o.frequency.exponentialRampToValueAtTime(35, bgmDrumNext + 0.1);
+      g.gain.setValueAtTime(0.4, bgmDrumNext);
+      g.gain.exponentialRampToValueAtTime(0.01, bgmDrumNext + 0.12);
+      o.start(bgmDrumNext); o.stop(bgmDrumNext + 0.12);
     }
-    // 하이햇 (노이즈)
-    const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.02, audioCtx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length) * 0.5;
-    const n = audioCtx.createBufferSource(), ng = audioCtx.createGain();
-    n.buffer = buf; n.connect(ng); ng.connect(bgmGain);
-    ng.gain.setValueAtTime(isKick ? 0.03 : 0.05, bgmDrumNext);
-    ng.gain.exponentialRampToValueAtTime(0.001, bgmDrumNext + 0.02);
-    n.start(bgmDrumNext);
+    if (beat === 1 || beat === 3) {
+      // 스네어 (노이즈 + 톤)
+      const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.06, audioCtx.sampleRate);
+      const sn = buf.getChannelData(0);
+      for (let i = 0; i < sn.length; i++) sn[i] = (Math.random() * 2 - 1) * (1 - i / sn.length);
+      const n = audioCtx.createBufferSource(), ng = audioCtx.createGain();
+      n.buffer = buf; n.connect(ng); ng.connect(bgmGain);
+      ng.gain.setValueAtTime(0.2, bgmDrumNext);
+      ng.gain.exponentialRampToValueAtTime(0.01, bgmDrumNext + 0.06);
+      n.start(bgmDrumNext);
+      // 스네어 톤
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.connect(g); g.connect(bgmGain);
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(200, bgmDrumNext);
+      o.frequency.exponentialRampToValueAtTime(120, bgmDrumNext + 0.04);
+      g.gain.setValueAtTime(0.15, bgmDrumNext);
+      g.gain.exponentialRampToValueAtTime(0.01, bgmDrumNext + 0.05);
+      o.start(bgmDrumNext); o.stop(bgmDrumNext + 0.05);
+    }
+    // 하이햇 (매 비트)
+    const hbuf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.015, audioCtx.sampleRate);
+    const hd = hbuf.getChannelData(0);
+    for (let i = 0; i < hd.length; i++) hd[i] = (Math.random() * 2 - 1) * (1 - i / hd.length) * 0.8;
+    const hn = audioCtx.createBufferSource(), hg = audioCtx.createGain();
+    hn.buffer = hbuf; hn.connect(hg); hg.connect(bgmGain);
+    hg.gain.setValueAtTime(0.1, bgmDrumNext);
+    hg.gain.exponentialRampToValueAtTime(0.001, bgmDrumNext + 0.015);
+    hn.start(bgmDrumNext);
 
-    bgmDrumNext += drumTempo * 0.5; bgmDrumBeat++;
+    bgmDrumNext += drumTempo * 0.25; bgmDrumBeat++;
   }
 
   bgmInterval = setTimeout(scheduleBGM, 150);
