@@ -247,6 +247,8 @@ class Cell {
     this.removeAnim = 0;
     this.selected = false; // 하이라이트
     this.shake = 0;
+    this.taps = 0; // 연타용 (혼자일 때 3탭 필요)
+    this.maxTaps = 3;
   }
 
   update(dt) {
@@ -310,6 +312,16 @@ class Cell {
 
     // 얼굴
     drawFace(this.type.face, x, y, r);
+
+    // 연타 진행도 바 (혼자일 때)
+    if (this.taps > 0 && this.taps < this.maxTaps) {
+      const barW = r * 1.4, barH = 3;
+      const bx2 = x - barW / 2, by2 = y + r * 0.7;
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillRect(bx2, by2, barW, barH);
+      ctx.fillStyle = this.taps >= 2 ? '#4CAF50' : '#FF9800';
+      ctx.fillRect(bx2, by2, barW * (this.taps / this.maxTaps), barH);
+    }
 
     ctx.restore();
   }
@@ -606,69 +618,169 @@ function showFB(x, y, text, color, size = 22) {
 }
 function triggerShake(n) { screenShake = n; }
 
-// ============ INPUT ============
-let selectedGroup = []; // 현재 하이라이트 그룹
+// ============ INPUT (스와이프 + 연타 하이브리드) ============
+let swipePath = []; // 스와이프 경로 [{c,r}, ...]
+let swipeTypeId = -1; // 스와이프 중인 잡초 타입
+let swiping = false;
 
-canvas.addEventListener('touchstart', onTap, { passive: false });
-canvas.addEventListener('mousedown', onTap);
-
-// 호버로 그룹 미리보기
-canvas.addEventListener('touchmove', onHover, { passive: false });
-canvas.addEventListener('mousemove', onHover);
+canvas.addEventListener('touchstart', onDown, { passive: false });
+canvas.addEventListener('touchmove', onMove, { passive: false });
+canvas.addEventListener('touchend', onUp, { passive: false });
+canvas.addEventListener('mousedown', onDown);
+canvas.addEventListener('mousemove', onMove);
+canvas.addEventListener('mouseup', onUp);
 
 function pos(e) { const t = e.touches ? e.touches[0] : e; return { x: t.clientX, y: t.clientY }; }
 
-function onHover(e) {
-  if (!gameRunning || animating) return;
-  const { x, y } = pos(e);
-  // 이전 선택 해제
-  selectedGroup.forEach(({ c, r }) => { if (grid[c] && grid[c][r]) grid[c][r].selected = false; });
-  selectedGroup = [];
-
+function findCellAt(x, y) {
   for (let c = 0; c < COLS; c++) {
     for (let r = 0; r < grid[c].length; r++) {
-      if (grid[c][r] && grid[c][r].contains(x, y)) {
-        const group = findGroup(c, r);
-        if (group.length >= 2) {
-          selectedGroup = group;
-          group.forEach(({ c: gc, r: gr }) => { grid[gc][gr].selected = true; });
-        }
-        return;
-      }
+      if (grid[c][r] && grid[c][r].contains(x, y)) return { c, r };
     }
   }
+  return null;
 }
 
-function onTap(e) {
+function isAdjacent(a, b) {
+  return Math.abs(a.c - b.c) + Math.abs(a.r - b.r) === 1;
+}
+
+function clearSwipeHighlight() {
+  swipePath.forEach(({ c, r }) => { if (grid[c] && grid[c][r]) grid[c][r].selected = false; });
+  swipePath = [];
+  swipeTypeId = -1;
+}
+
+function onDown(e) {
   if (!gameRunning || animating) return;
   e.preventDefault?.();
   const { x, y } = pos(e);
+  const cell = findCellAt(x, y);
+  if (!cell) return;
 
-  for (let c = 0; c < COLS; c++) {
-    for (let r = 0; r < grid[c].length; r++) {
-      if (grid[c][r] && grid[c][r].contains(x, y)) {
-        const group = findGroup(c, r);
-        if (group.length >= 2) {
-          // 선택 해제
-          selectedGroup.forEach(({ c: gc, r: gr }) => { if (grid[gc] && grid[gc][gr]) grid[gc][gr].selected = false; });
-          selectedGroup = [];
+  const { c, r } = cell;
+  const g = grid[c][r];
+  if (!g || g.removing) return;
 
+  swiping = true;
+  swipeTypeId = g.typeId;
+  swipePath = [{ c, r }];
+  g.selected = true;
+  g.shake = 3;
+  sfx('pop', 0);
+}
+
+function onMove(e) {
+  if (!swiping || !gameRunning || animating) return;
+  e.preventDefault?.();
+  const { x, y } = pos(e);
+  const cell = findCellAt(x, y);
+  if (!cell) return;
+
+  const { c, r } = cell;
+  const g = grid[c][r];
+  if (!g || g.removing) return;
+
+  // 같은 타입 + 인접 + 아직 경로에 없음
+  const last = swipePath[swipePath.length - 1];
+  const alreadyInPath = swipePath.some(p => p.c === c && p.r === r);
+
+  if (!alreadyInPath && g.typeId === swipeTypeId && isAdjacent(last, { c, r })) {
+    swipePath.push({ c, r });
+    g.selected = true;
+    g.shake = 3;
+    sfx('pop', Math.min(swipePath.length, 5));
+  }
+}
+
+function onUp(e) {
+  if (!swiping || !gameRunning || animating) return;
+  e.preventDefault?.();
+  swiping = false;
+
+  if (swipePath.length >= 2) {
+    // 스와이프로 2개 이상 → 한꺼번에 터짐!
+    currentChain = 0;
+    removeGroup(swipePath, 0);
+    animating = true;
+    clearSwipeHighlight();
+    setTimeout(() => {
+      dropColumns();
+      setTimeout(() => checkChains(), 350);
+    }, 250);
+  } else if (swipePath.length === 1) {
+    // 단독 탭 → 연타 모드
+    const { c, r } = swipePath[0];
+    const g = grid[c][r];
+    if (g && !g.removing) {
+      // 먼저 BFS로 그룹 체크
+      const group = findGroup(c, r);
+      if (group.length >= 2) {
+        // 그룹이 있으면 탭으로도 터뜨릴 수 있음
+        currentChain = 0;
+        removeGroup(group, 0);
+        animating = true;
+        clearSwipeHighlight();
+        setTimeout(() => {
+          dropColumns();
+          setTimeout(() => checkChains(), 350);
+        }, 250);
+      } else {
+        // 혼자 → 연타!
+        g.taps++;
+        g.shake = 6;
+        sfx('pop', g.taps);
+        showFB(g.x, g.y - g.r, `${g.taps}/${g.maxTaps}`, '#FFF', 14);
+
+        if (g.taps >= g.maxTaps) {
+          // 연타 완료 → 뽑힘!
+          g.taps = 0;
           currentChain = 0;
-          removeGroup(group, 0);
+          removeGroup([{ c, r }], 0);
           animating = true;
+          clearSwipeHighlight();
           setTimeout(() => {
             dropColumns();
-            setTimeout(() => checkChains(), 400);
+            setTimeout(() => checkChains(), 350);
           }, 250);
-        } else {
-          // 단독 — 흔들기만
-          grid[c][r].shake = 5;
-          sfx('miss');
         }
-        return;
       }
     }
+    clearSwipeHighlight();
+  } else {
+    clearSwipeHighlight();
   }
+}
+
+// 스와이프 라인 그리기 (게임 루프에서 호출)
+function drawSwipeLine() {
+  if (swipePath.length < 2) return;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.setLineDash([8, 4]);
+  ctx.beginPath();
+  swipePath.forEach(({ c, r }, i) => {
+    const cell = grid[c][r];
+    if (!cell) return;
+    if (i === 0) ctx.moveTo(cell.x, cell.y);
+    else ctx.lineTo(cell.x, cell.y);
+  });
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // 경로 위 숫자 표시
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.font = 'bold 16px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const last = swipePath[swipePath.length - 1];
+  const lastCell = grid[last.c][last.r];
+  if (lastCell) {
+    ctx.fillText(`${swipePath.length}개`, lastCell.x, lastCell.y - lastCell.r - 10);
+  }
+  ctx.restore();
 }
 
 // ============ BACKGROUND (캐시) ============
@@ -795,6 +907,7 @@ function loop(ts) {
 
   updateParticles(dt);
   drawParticles();
+  if (swiping) drawSwipeLine();
   if (gameRunning) updateHUD();
 
   ctx.restore();
