@@ -835,18 +835,24 @@ function onUp(e) {
   e.preventDefault?.();
   swiping = false;
 
-  if (swipePath.length >= 2) {
-    // 스와이프로 2개 이상 → 한꺼번에 터짐!
+  if (swipePath.length >= 3) {
+    // 스와이프로 3개 이상 → 한꺼번에 터짐!
     currentChain = 0;
     removeGroup(swipePath, 0);
     animating = true;
     clearSwipeHighlight();
     setTimeout(() => {
       dropColumns();
-      setTimeout(() => checkChains(), 350);
+      // 자동 연쇄 없음! 떨어지기만 하고 끝
+      setTimeout(() => { animating = false; }, 400);
     }, 250);
+  } else if (swipePath.length === 2) {
+    // 2개는 부족! 흔들기만
+    swipePath.forEach(({ c, r }) => { if (grid[c] && grid[c][r]) grid[c][r].shake = 5; });
+    sfx('miss');
+    clearSwipeHighlight();
   } else if (swipePath.length === 1) {
-    // 단독 탭 → 무조건 연타 모드 (드래그 안 하면 그룹이어도 안 터짐!)
+    // 단독 탭 → 연타 모드
     const { c, r } = swipePath[0];
     const g = grid[c][r];
     if (g && !g.removing) {
@@ -866,7 +872,7 @@ function onUp(e) {
           clearSwipeHighlight();
           setTimeout(() => {
             dropColumns();
-            setTimeout(() => checkChains(), 350);
+            setTimeout(() => { animating = false; }, 350);
           }, 250);
         }
       }
