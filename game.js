@@ -899,7 +899,9 @@ function loop(ts) {
 
   // 셀 업데이트 & 그리기
   for (let c = 0; c < COLS; c++) {
+    if (!grid[c]) continue;
     for (let r = 0; r < grid[c].length; r++) {
+      if (!grid[c][r]) continue;
       grid[c][r].update(dt);
       grid[c][r].draw();
     }
