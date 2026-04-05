@@ -1038,7 +1038,10 @@ function loop(ts) {
 
 // ============ START ============
 document.getElementById('btn-start').addEventListener('click', startCountdown);
-document.getElementById('btn-retry').addEventListener('click', startCountdown);
+document.getElementById('btn-retry').addEventListener('click', (e) => {
+  e.stopPropagation();
+  startCountdown();
+});
 
 function startCountdown() {
   initAudio();
@@ -1046,6 +1049,8 @@ function startCountdown() {
   document.getElementById('result-screen').classList.add('hidden');
   document.getElementById('hud').classList.remove('hidden');
 
+  clearInterval(timerInterval); stopBGM();
+  swiping = false; clearSwipeHighlight();
   particles = []; score = 0; combo = 0; maxCombo = 0; chainLevel = 0;
   pullCount = 0; elapsed = 0; feverMode = false; gameOver = false;
   animating = false; timeLeft = 60; isNewRecord = false; currentChain = 0;
@@ -1084,7 +1089,9 @@ function startGame() {
 
 function endGame() {
   if (gameOver) return;
-  gameOver = true; gameRunning = false; stopBGM(); sfx('end');
+  gameOver = true; gameRunning = false; animating = false;
+  swiping = false; clearSwipeHighlight();
+  clearInterval(timerInterval); stopBGM(); sfx('end');
   document.getElementById('hud-timer').style.color = '';
   document.getElementById('hud-score').style.color = '';
   document.getElementById('fever-overlay').classList.remove('active');
