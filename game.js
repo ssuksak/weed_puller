@@ -14,27 +14,47 @@ function initAudio() {
   if (audioCtx) return;
   audioCtx = new AudioCtx();
   bgmGain = audioCtx.createGain();
-  bgmGain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+  bgmGain.gain.setValueAtTime(0.07, audioCtx.currentTime);
   bgmGain.connect(audioCtx.destination);
 }
 
-const BGM = [
-  [261,0.5],[329,0.5],[392,0.5],[329,0.5],[349,0.5],[440,0.5],[392,1],
-  [293,0.5],[349,0.5],[440,0.5],[349,0.5],[392,0.5],[493,0.5],[440,1],
+// 🎵 박진감 BGM — 메인 멜로디 + 베이스 + 드럼
+const BGM_MELODY = [
+  // 긴장감 있는 단조 멜로디
+  [392,0.5],[370,0.25],[349,0.25],[330,0.5],[294,0.25],[330,0.25],
+  [349,0.5],[392,0.5],[440,0.5],[392,0.5],
+  [370,0.5],[349,0.25],[330,0.25],[294,0.5],[262,0.25],[294,0.25],
+  [330,0.5],[349,0.5],[392,1],
 ];
-const BGM_FAST = [
-  [392,0.25],[440,0.25],[493,0.25],[523,0.25],[587,0.25],[523,0.25],[493,0.25],[440,0.25],
-  [523,0.5],[659,0.5],[784,1],[659,0.25],[587,0.25],[523,0.25],[493,0.25],
+const BGM_BASS = [
+  // 펄스 베이스 (옥타브 낮게)
+  [131,1],[147,1],[165,1],[131,1],
+  [147,1],[165,1],[175,1],[131,1],
+];
+const BGM_FEVER_MELODY = [
+  [523,0.25],[587,0.25],[659,0.25],[698,0.25],
+  [784,0.5],[659,0.25],[587,0.25],
+  [523,0.25],[587,0.25],[784,0.5],[698,0.25],[659,0.25],
+  [587,0.5],[523,0.5],[659,1],
 ];
 
+let bgmBassIdx = 0, bgmBassNext = 0;
+let bgmDrumNext = 0, bgmDrumBeat = 0;
+
 function startBGM() {
-  if (bgmPlaying) return; bgmPlaying = true; bgmIdx = 0;
-  bgmNextTime = audioCtx.currentTime; scheduleBGM();
+  if (bgmPlaying) return; bgmPlaying = true; bgmIdx = 0; bgmBassIdx = 0; bgmDrumBeat = 0;
+  bgmNextTime = audioCtx.currentTime;
+  bgmBassNext = audioCtx.currentTime;
+  bgmDrumNext = audioCtx.currentTime;
+  scheduleBGM();
 }
+
 function scheduleBGM() {
   if (!bgmPlaying || !audioCtx) return;
-  const mel = feverMode ? BGM_FAST : BGM;
-  const tempo = feverMode ? 0.11 : 0.17;
+  const mel = feverMode ? BGM_FEVER_MELODY : BGM_MELODY;
+  const tempo = feverMode ? 0.10 : 0.15;
+
+  // 멜로디
   while (bgmNextTime < audioCtx.currentTime + 0.5) {
     const [f, d] = mel[bgmIdx % mel.length];
     const o = audioCtx.createOscillator(), g = audioCtx.createGain();
@@ -42,11 +62,54 @@ function scheduleBGM() {
     o.type = feverMode ? 'square' : 'triangle';
     o.frequency.setValueAtTime(f, bgmNextTime);
     g.gain.setValueAtTime(0.12, bgmNextTime);
-    g.gain.exponentialRampToValueAtTime(0.01, bgmNextTime + d * tempo * 0.9);
+    g.gain.exponentialRampToValueAtTime(0.01, bgmNextTime + d * tempo * 0.85);
     o.start(bgmNextTime); o.stop(bgmNextTime + d * tempo);
     bgmNextTime += d * tempo; bgmIdx++;
   }
-  bgmInterval = setTimeout(scheduleBGM, 200);
+
+  // 베이스 (펄스)
+  const bassTempo = tempo * 4;
+  while (bgmBassNext < audioCtx.currentTime + 0.5) {
+    const [f, d] = BGM_BASS[bgmBassIdx % BGM_BASS.length];
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.connect(g); g.connect(bgmGain);
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(f, bgmBassNext);
+    g.gain.setValueAtTime(0.06, bgmBassNext);
+    g.gain.exponentialRampToValueAtTime(0.01, bgmBassNext + d * bassTempo * 0.5);
+    o.start(bgmBassNext); o.stop(bgmBassNext + d * bassTempo * 0.6);
+    bgmBassNext += d * bassTempo; bgmBassIdx++;
+  }
+
+  // 드럼 (킥 + 하이햇)
+  const drumTempo = tempo * 2;
+  while (bgmDrumNext < audioCtx.currentTime + 0.5) {
+    const isKick = bgmDrumBeat % 2 === 0;
+    if (isKick) {
+      // 킥 드럼
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.connect(g); g.connect(bgmGain);
+      o.type = 'sine';
+      o.frequency.setValueAtTime(150, bgmDrumNext);
+      o.frequency.exponentialRampToValueAtTime(40, bgmDrumNext + 0.08);
+      g.gain.setValueAtTime(0.12, bgmDrumNext);
+      g.gain.exponentialRampToValueAtTime(0.01, bgmDrumNext + 0.1);
+      o.start(bgmDrumNext); o.stop(bgmDrumNext + 0.1);
+    }
+    // 하이햇 (노이즈)
+    const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.02, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length) * 0.5;
+    const n = audioCtx.createBufferSource(), ng = audioCtx.createGain();
+    n.buffer = buf; n.connect(ng); ng.connect(bgmGain);
+    ng.gain.setValueAtTime(isKick ? 0.03 : 0.05, bgmDrumNext);
+    ng.gain.exponentialRampToValueAtTime(0.001, bgmDrumNext + 0.02);
+    n.start(bgmDrumNext);
+
+    bgmDrumNext += drumTempo * 0.5; bgmDrumBeat++;
+  }
+
+  bgmInterval = setTimeout(scheduleBGM, 150);
 }
 function stopBGM() { bgmPlaying = false; clearTimeout(bgmInterval); }
 
@@ -653,35 +716,153 @@ function drawBG() {
     if (!bgCache) bgCache=document.createElement('canvas');
     bgCache.width=canvas.width; bgCache.height=canvas.height;
     const bg=bgCache.getContext('2d');
-    const gr=bg.createRadialGradient(canvas.width/2,canvas.height/2,50,canvas.width/2,canvas.height/2,canvas.height);
-    if (feverMode) { gr.addColorStop(0,'#FF8A65'); gr.addColorStop(1,'#BF360C'); }
-    else { gr.addColorStop(0,'#66BB6A'); gr.addColorStop(1,'#2E7D32'); }
-    bg.fillStyle=gr; bg.fillRect(0,0,canvas.width,canvas.height);
-    const gc=feverMode?['#FF7043','#E64A19']:['#81C784','#4CAF50','#388E3C'];
-    for (let i=0;i<100;i++) {
-      bg.globalAlpha=0.2+Math.sin(i*0.7)*0.1; bg.fillStyle=gc[i%gc.length];
-      bg.beginPath(); bg.ellipse((i*41+Math.sin(i*2.7)*25)%canvas.width,(i*29+Math.cos(i*1.9)*20)%canvas.height,2+Math.sin(i),5+Math.cos(i)*2,Math.sin(i*0.5)*0.5,0,Math.PI*2); bg.fill();
+    const W=canvas.width, H=canvas.height;
+
+    // === 하늘 ===
+    const skyH = gridY - 10;
+    const sky = bg.createLinearGradient(0, 0, 0, skyH);
+    if (feverMode) { sky.addColorStop(0,'#FF6F00'); sky.addColorStop(1,'#FFB74D'); }
+    else { sky.addColorStop(0,'#87CEEB'); sky.addColorStop(0.6,'#B2EBF2'); sky.addColorStop(1,'#E0F7FA'); }
+    bg.fillStyle = sky; bg.fillRect(0, 0, W, skyH);
+
+    // 구름
+    if (!feverMode) {
+      bg.fillStyle = 'rgba(255,255,255,0.7)';
+      [[W*0.15, skyH*0.3, 40],[W*0.55, skyH*0.2, 50],[W*0.85, skyH*0.4, 35]].forEach(([cx,cy,s]) => {
+        bg.beginPath();
+        bg.arc(cx,cy,s*0.5,0,Math.PI*2);
+        bg.arc(cx+s*0.35,cy-s*0.15,s*0.35,0,Math.PI*2);
+        bg.arc(cx+s*0.65,cy,s*0.4,0,Math.PI*2);
+        bg.arc(cx+s*0.3,cy+s*0.08,s*0.3,0,Math.PI*2);
+        bg.fill();
+      });
     }
-    bg.globalAlpha=1;
-    const bw=8,px=10,py=6,bx=gridX-px,by=gridY-py,bW=cellW*COLS+px*2,bH=cellH*ROWS+py*2;
-    bg.fillStyle='rgba(0,0,0,0.2)'; bgRR(bg,bx-bw+3,by-bw+3,bW+bw*2,bH+bw*2,12);
-    bg.fillStyle=feverMode?'#D84315':'#6D4C41'; bgRR(bg,bx-bw,by-bw,bW+bw*2,bH+bw*2,12);
-    bg.fillStyle=feverMode?'#FF8A65':'#8D6E63'; bgRR(bg,bx-2,by-2,bW+4,bH+4,8);
-    const dg=bg.createLinearGradient(bx,by,bx,by+bH);
-    if(feverMode){dg.addColorStop(0,'#A1887F');dg.addColorStop(1,'#795548');}
-    else{dg.addColorStop(0,'#A1887F');dg.addColorStop(0.3,'#8D6E63');dg.addColorStop(1,'#6D4C41');}
-    bg.fillStyle=dg; bgRR(bg,bx,by,bW,bH,6);
-    bg.strokeStyle='rgba(0,0,0,0.06)'; bg.lineWidth=1; bg.setLineDash([4,4]);
-    for(let c=1;c<COLS;c++){bg.beginPath();bg.moveTo(gridX+c*cellW,by+4);bg.lineTo(gridX+c*cellW,by+bH-4);bg.stroke();}
-    for(let r=1;r<ROWS;r++){bg.beginPath();bg.moveTo(bx+4,gridY+r*cellH);bg.lineTo(bx+bW-4,gridY+r*cellH);bg.stroke();}
+
+    // 산/언덕 (원경)
+    bg.fillStyle = feverMode ? '#E65100' : '#66BB6A';
+    bg.beginPath(); bg.moveTo(0, skyH);
+    for (let x=0; x<=W; x+=20) {
+      bg.lineTo(x, skyH - 15 - Math.sin(x*0.015)*12 - Math.sin(x*0.008)*8);
+    }
+    bg.lineTo(W, skyH); bg.closePath(); bg.fill();
+
+    // 먼 밭 두렁 (중경)
+    bg.fillStyle = feverMode ? '#BF360C' : '#4CAF50';
+    bg.beginPath(); bg.moveTo(0, skyH + 5);
+    for (let x=0; x<=W; x+=15) {
+      bg.lineTo(x, skyH + 5 - Math.sin(x*0.02+1)*6);
+    }
+    bg.lineTo(W, skyH + 10); bg.lineTo(0, skyH + 10); bg.closePath(); bg.fill();
+
+    // === 잔디밭 (밭 주변) ===
+    const grassGrad = bg.createLinearGradient(0, skyH, 0, H);
+    if (feverMode) { grassGrad.addColorStop(0,'#E65100'); grassGrad.addColorStop(1,'#BF360C'); }
+    else { grassGrad.addColorStop(0,'#558B2F'); grassGrad.addColorStop(0.3,'#33691E'); grassGrad.addColorStop(1,'#1B5E20'); }
+    bg.fillStyle = grassGrad; bg.fillRect(0, skyH, W, H - skyH);
+
+    // 잔디 풀 디테일
+    const gc = feverMode ? ['#FF8F00','#E65100'] : ['#689F38','#558B2F','#33691E'];
+    for (let i=0; i<120; i++) {
+      const gx = (i*37+Math.sin(i*3.1)*20) % W;
+      const gy = skyH + (i*23+Math.cos(i*1.7)*15) % (H-skyH);
+      bg.globalAlpha = 0.25;
+      bg.fillStyle = gc[i%gc.length];
+      bg.beginPath();
+      // 풀잎 모양
+      bg.moveTo(gx, gy);
+      bg.quadraticCurveTo(gx+2, gy-8-Math.random()*4, gx+Math.sin(i)*3, gy-12-Math.random()*4);
+      bg.quadraticCurveTo(gx-2, gy-8, gx, gy);
+      bg.fill();
+    }
+    bg.globalAlpha = 1;
+
+    // 밭 바깥 장식: 돌멩이, 나뭇잎
+    bg.fillStyle = '#9E9E9E';
+    [[20, H*0.85, 5],[W-25, H*0.78, 4],[W*0.3, H*0.92, 3],[W*0.7, H*0.88, 6]].forEach(([sx,sy,sr]) => {
+      bg.globalAlpha = 0.3;
+      bg.beginPath(); bg.ellipse(sx,sy,sr,sr*0.7,0.2,0,Math.PI*2); bg.fill();
+    });
+    bg.globalAlpha = 1;
+
+    // === 화단 (밭 이랑) ===
+    const bw=6, px=8, py=4;
+    const bx=gridX-px, by=gridY-py;
+    const bW=cellW*COLS+px*2, bH=cellH*ROWS+py*2;
+
+    // 밭두렁 (가장자리 흙 더미)
+    bg.fillStyle = feverMode ? '#8D6E63' : '#6D4C41';
+    bgRR(bg, bx-bw-2, by-bw-2, bW+bw*2+4, bH+bw*2+4, 8);
+
+    // 메인 흙
+    const dirt = bg.createLinearGradient(bx, by, bx, by+bH);
+    if (feverMode) { dirt.addColorStop(0,'#A1887F'); dirt.addColorStop(1,'#795548'); }
+    else { dirt.addColorStop(0,'#8D6E63'); dirt.addColorStop(0.5,'#795548'); dirt.addColorStop(1,'#6D4C41'); }
+    bg.fillStyle = dirt;
+    bgRR(bg, bx, by, bW, bH, 4);
+
+    // 밭 이랑 (가로줄 — 진짜 밭처럼)
+    for (let r=0; r<ROWS; r++) {
+      const ry = gridY + r * cellH + cellH * 0.5;
+      // 이랑 볼록한 부분 (밝은 흙)
+      bg.fillStyle = feverMode ? 'rgba(188,143,107,0.3)' : 'rgba(161,136,127,0.25)';
+      bg.beginPath();
+      bg.ellipse(bx + bW/2, ry, bW/2 - 4, cellH * 0.3, 0, 0, Math.PI * 2);
+      bg.fill();
+    }
+
+    // 이랑 사이 골 (어두운 줄)
+    bg.strokeStyle = 'rgba(0,0,0,0.1)'; bg.lineWidth = 1;
+    for (let r=1; r<ROWS; r++) {
+      const ly = gridY + r * cellH;
+      bg.beginPath(); bg.moveTo(bx+4, ly); bg.lineTo(bx+bW-4, ly); bg.stroke();
+    }
+
+    // 세로 구분 (은은하게)
+    bg.strokeStyle = 'rgba(0,0,0,0.04)'; bg.setLineDash([6,6]);
+    for (let c=1; c<COLS; c++) {
+      bg.beginPath(); bg.moveTo(gridX+c*cellW, by+4); bg.lineTo(gridX+c*cellW, by+bH-4); bg.stroke();
+    }
     bg.setLineDash([]);
+
+    // 흙 텍스처 (작은 돌, 흙덩이)
+    for (let i=0; i<50; i++) {
+      const tx = bx + 8 + ((i*37+i*i*3) % (bW-16));
+      const ty = by + 8 + ((i*23+i*i*2) % (bH-16));
+      const ts = 1 + (i%4);
+      bg.globalAlpha = 0.08 + (i%3)*0.02;
+      bg.fillStyle = i%5===0 ? '#9E9E9E' : '#5D4037';
+      bg.beginPath(); bg.arc(tx, ty, ts, 0, Math.PI*2); bg.fill();
+    }
+    bg.globalAlpha = 1;
+
+    // 화단 가장자리 풀 (밭 테두리에 자라는 잡풀)
+    bg.fillStyle = feverMode ? '#FF8F00' : '#7CB342';
+    for (let i=0; i<30; i++) {
+      const edge = i < 15 ? 'top' : 'bottom';
+      const ex = bx + (i%15) * (bW/15) + Math.sin(i*2)*5;
+      const ey = edge === 'top' ? by - 2 : by + bH + 2;
+      const eh = 4 + Math.sin(i*1.5)*3;
+      const dir = edge === 'top' ? -1 : 1;
+      bg.globalAlpha = 0.5;
+      bg.beginPath();
+      bg.moveTo(ex, ey);
+      bg.quadraticCurveTo(ex + Math.sin(i)*3, ey + dir*eh, ex + 1, ey + dir*(eh+2));
+      bg.quadraticCurveTo(ex - Math.sin(i)*2, ey + dir*eh*0.5, ex, ey);
+      bg.fill();
+    }
+    bg.globalAlpha = 1;
+
     bgCacheKey=key;
   }
-  ctx.drawImage(bgCache,0,0);
-  if(!bgDecos.length) initBgDecos();
-  const t=Date.now()*0.001;
-  bgDecos.forEach((d,i)=>{
-    ctx.save(); ctx.globalAlpha=0.3;
+
+  // 캐시된 배경 그리기
+  ctx.drawImage(bgCache, 0, 0);
+
+  // 동적 장식 (이모지 — 벌레 등이 밭 주변에)
+  if (!bgDecos.length) initBgDecos();
+  const t = Date.now() * 0.001;
+  bgDecos.forEach((d, i) => {
+    ctx.save(); ctx.globalAlpha = 0.35;
     ctx.drawImage(bgDecoCache[i], d.x+Math.sin(t*d.speed+d.wobble)*5-d.size, d.y+Math.cos(t*d.speed*0.7+d.wobble)*3-d.size);
     ctx.restore();
   });
