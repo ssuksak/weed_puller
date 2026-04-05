@@ -193,7 +193,7 @@ let animTimeout = 0;
 let bomb = null; // { x, y, taps, maxTaps, timer, maxTimer, shake }
 let bombSpawnTimer = 0;
 let bombInterval = 10; // 첫 폭탄 10초 후
-let timeLeft = 60; // 60초 타임어택
+let timeLeft = 30;
 let timerInterval = null;
 
 // High score
