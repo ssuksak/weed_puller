@@ -187,6 +187,7 @@ let pullCount = 0, elapsed = 0;
 let feverMode = false, feverTimer = 0;
 let screenShake = 0, shakeX = 0, shakeY = 0;
 let animating = false; // 낙하/연쇄 애니메이션 중
+let animTimeout = 0; // animating 안전장치 타이머
 let timeLeft = 60; // 60초 타임어택
 let timerInterval = null;
 
@@ -653,7 +654,11 @@ function checkChains() {
     }
     if (!allSettled) break;
   }
-  if (!allSettled) return false;
+  if (!allSettled) {
+    // 아직 떨어지는 중 → 200ms 후 재시도
+    setTimeout(() => checkChains(), 200);
+    return false;
+  }
 
   // 매치 찾기
   const visited = new Set();
@@ -1011,6 +1016,12 @@ function loop(ts) {
   ctx.save(); ctx.translate(shakeX, shakeY);
   ctx.clearRect(-10, -10, canvas.width + 20, canvas.height + 20);
   drawBG();
+
+  // animating 안전장치 (3초 타임아웃)
+  if (animating) {
+    animTimeout += dt;
+    if (animTimeout > 3) { animating = false; animTimeout = 0; }
+  } else { animTimeout = 0; }
 
   if (feverMode && gameRunning) {
     feverTimer -= dt;
