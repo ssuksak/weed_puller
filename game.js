@@ -841,24 +841,12 @@ function onUp(e) {
       setTimeout(() => checkChains(), 350);
     }, 250);
   } else if (swipePath.length === 1) {
-    // 단독 탭 → 연타 모드
+    // 단독 탭 → 무조건 연타 모드 (드래그 안 하면 그룹이어도 안 터짐!)
     const { c, r } = swipePath[0];
     const g = grid[c][r];
     if (g && !g.removing) {
-      // 먼저 BFS로 그룹 체크
-      const group = findGroup(c, r);
-      if (group.length >= 2) {
-        // 그룹이 있으면 탭으로도 터뜨릴 수 있음
-        currentChain = 0;
-        removeGroup(group, 0);
-        animating = true;
-        clearSwipeHighlight();
-        setTimeout(() => {
-          dropColumns();
-          setTimeout(() => checkChains(), 350);
-        }, 250);
-      } else {
-        // 혼자 → 연타!
+      {
+        // 연타!
         g.taps++;
         g.shake = 6;
         sfx('pop', g.taps);
