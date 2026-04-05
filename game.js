@@ -909,12 +909,13 @@ function tapPlant(plant) {
   }
 }
 
+// ============ CHAIN SYSTEM (애니팡식 연쇄) ============
+let chainLevel = 0; // 현재 연쇄 단계
+let chainQueue = []; // 연쇄 대기열
+let chainTimer = 0;
+
 function completePull(plant) {
-  plant.isPulled = true;
-  plant.face = 'dead';
-  plant.pullDir = { x: (Math.random()-0.5)*2, y: -1 };
-  occupied.delete(cellKey(plant.col, plant.row));
-  holes.push(new Hole(plant.x, plant.y, plant.r));
+  removePlant(plant);
 
   if (plant.isFlower) {
     score = Math.max(0, score + plant.points);
@@ -924,8 +925,8 @@ function completePull(plant) {
     feverMode = false;
     document.getElementById('fever-overlay').classList.remove('active');
     burst(plant.x, plant.y, '#FFB7C5', 8);
+    chainLevel = 0;
   } else if (plant.isGolden) {
-    // 골든: 대박 점수 + 주변 잡초 전부 제거!
     goldenCount++;
     const pts = 100 * Math.max(combo, 1);
     score += pts; pullCount++;
@@ -935,15 +936,23 @@ function completePull(plant) {
     sfx('golden'); triggerShake(8);
     burst(plant.x, plant.y, '#FFD700', 15);
     burst(plant.x, plant.y, '#FFF9C4', 10);
-    // 주변 잡초 제거
     clearAdjacentWeeds(plant.col, plant.row);
+    chainLevel = 0;
   } else {
     combo++;
     if (combo > maxCombo) maxCombo = combo;
     const mult = feverMode ? combo * 2 : Math.min(combo, 10);
     const pts = plant.points * mult;
     score += pts; pullCount++;
-    sfx('pull'); triggerShake(4);
+
+    // 연쇄 배수
+    const chainMult = 1 + chainLevel * 0.5;
+    const finalPts = Math.round(pts * chainMult);
+    if (chainLevel > 0) score += finalPts - pts; // 추가 점수
+
+    if (chainLevel > 0) sfx('combo', combo + chainLevel * 3); // 연쇄 시 더 높은 피치
+    else sfx('pull');
+    triggerShake(3 + chainLevel * 2);
 
     if (combo >= 10 && !feverMode) {
       feverMode = true; feverTimer = 8; invalidateBgCache();
@@ -952,12 +961,56 @@ function completePull(plant) {
       showFB(canvas.width/2-50, canvas.height*0.12, '🔥 FEVER! 🔥', '#FFD700', 30);
     } else if (combo > 1) sfx('combo', combo);
 
+    const chainText = chainLevel > 0 ? ` 💥${chainLevel+1}연쇄!` : '';
     const ct = combo>1 ? ` x${combo}${feverMode?'🔥':''}` : '';
-    showFB(plant.x, plant.y, `+${pts}${ct}`, feverMode?'#FFD700':combo>=5?'#FFC107':'#4CAF50', combo>=5?28:22);
-    burst(plant.x, plant.y, '#8D6E63', 8);
-    burst(plant.x, plant.y, '#A0522D', 5);
+    const fontSize = Math.min(22 + chainLevel * 4, 36);
+    showFB(plant.x, plant.y, `+${finalPts}${ct}${chainText}`,
+      chainLevel >= 3 ? '#FF1744' : chainLevel >= 2 ? '#FF9100' : feverMode ? '#FFD700' : combo >= 5 ? '#FFC107' : '#4CAF50', fontSize);
+
+    burst(plant.x, plant.y, '#8D6E63', 6 + chainLevel * 4);
+    burst(plant.x, plant.y, chainLevel >= 2 ? '#FF9100' : '#A0522D', 4 + chainLevel * 3);
+
+    // 🔥 연쇄 체크 — 같은 종류 인접 잡초 자동 뽑기!
+    const sameType = findAdjacentSameType(plant.col, plant.row, plant.type.name);
+    if (sameType.length > 0) {
+      chainLevel++;
+      // 딜레이를 두고 연쇄 발동 (애니팡처럼)
+      sameType.forEach((p, i) => {
+        setTimeout(() => {
+          if (!p.isPulled && gameRunning) {
+            completePull(p);
+          }
+        }, (i + 1) * 150); // 150ms 간격으로 연쇄
+      });
+    } else {
+      chainLevel = 0;
+    }
   }
   updateHUD();
+}
+
+function removePlant(plant) {
+  plant.isPulled = true;
+  plant.face = 'dead';
+  plant.pullDir = { x: (Math.random()-0.5)*2, y: -1 };
+  occupied.delete(cellKey(plant.col, plant.row));
+  holes.push(new Hole(plant.x, plant.y, plant.r));
+}
+
+// 인접한 같은 종류 잡초 찾기 (연쇄용)
+function findAdjacentSameType(col, row, typeName) {
+  const result = [];
+  const dirs = [[0,-1],[0,1],[-1,0],[1,0]]; // 상하좌우
+  dirs.forEach(([dc, dr]) => {
+    const nc = col + dc, nr = row + dr;
+    const adj = plants.find(p =>
+      p.col === nc && p.row === nr &&
+      !p.isPulled && !p.isFlower && !p.isGolden && !p.isBomb && !p.isMole &&
+      p.type.name === typeName
+    );
+    if (adj) result.push(adj);
+  });
+  return result;
 }
 
 function clearAdjacentWeeds(col, row) {
@@ -1386,6 +1439,7 @@ function startCountdown() {
   pullCount=0; flowerMissCount=0; feverMode=false; gameOver=false;
   wave=1; waveTimer=0; dangerLevel=0; wasDanger=false; heartbeatTimer=0;
   items=[]; rainEvent=false; rainTimer=0; moleTimer=0;
+  chainLevel=0; chainQueue=[]; chainTimer=0;
   goldenCount=0; surviveCount=0; isNewRecord=false;
   badgeQueue=[]; currentBadge=null; badgeShowTimer=0;
   document.getElementById('hud-score').style.color='';
