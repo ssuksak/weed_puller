@@ -822,58 +822,86 @@ function drawBomb() {
   const sc = b.scale;
   const sx = (Math.random()-0.5) * b.shake;
   const bx = b.x + sx, by = b.y;
-  const r = 28 * sc;
-
-  // 위험 글로우 (시간에 따라 강해짐)
+  const r = 38 * sc;
   const danger = 1 - (b.timer / b.maxTimer);
-  ctx.fillStyle = `rgba(255,0,0,${0.1 + danger * 0.2})`;
-  ctx.beginPath(); ctx.arc(bx, by, r * 2 + Math.sin(Date.now()*0.01)*5, 0, Math.PI*2); ctx.fill();
 
-  // 폭탄 몸체
-  ctx.fillStyle = '#424242';
+  // 큰 빨간 경고 원 (펄스)
+  const pulseR = r * 3 + Math.sin(Date.now()*0.008) * 15;
+  ctx.fillStyle = `rgba(255,0,0,${0.08 + danger * 0.15})`;
+  ctx.beginPath(); ctx.arc(bx, by, pulseR, 0, Math.PI*2); ctx.fill();
+  // 두 번째 링
+  ctx.strokeStyle = `rgba(255,50,50,${0.3 + danger * 0.4})`;
+  ctx.lineWidth = 3;
+  ctx.setLineDash([8, 6]);
+  ctx.beginPath(); ctx.arc(bx, by, r * 2.2 + Math.sin(Date.now()*0.012)*8, 0, Math.PI*2); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // ⚠️ 경고 텍스트 (위에 떠다님)
+  ctx.fillStyle = '#FF1744';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.globalAlpha = 0.6 + Math.sin(Date.now()*0.006)*0.4;
+  ctx.fillText('⚠️ 연타하세요!', bx, by - r - 25);
+  ctx.globalAlpha = 1;
+
+  // 폭탄 그림자
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath(); ctx.ellipse(bx+2, by + r*0.4, r*0.8, r*0.2, 0, 0, Math.PI*2); ctx.fill();
+
+  // 폭탄 몸체 (크고 명확하게)
+  ctx.fillStyle = '#37474F';
   ctx.beginPath(); ctx.arc(bx, by, r, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#616161';
-  ctx.beginPath(); ctx.arc(bx - r*0.1, by - r*0.1, r*0.85, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#546E7A';
+  ctx.beginPath(); ctx.arc(bx - r*0.08, by - r*0.08, r*0.88, 0, Math.PI*2); ctx.fill();
+
+  // 위험 색 오버레이 (시간 적을수록 빨갛게)
+  ctx.fillStyle = `rgba(255,0,0,${danger * 0.35})`;
+  ctx.beginPath(); ctx.arc(bx, by, r*0.85, 0, Math.PI*2); ctx.fill();
 
   // 반사광
-  ctx.fillStyle = 'rgba(255,255,255,0.25)';
-  ctx.beginPath(); ctx.ellipse(bx - r*0.15, by - r*0.3, r*0.35, r*0.15, -0.2, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.beginPath(); ctx.ellipse(bx - r*0.2, by - r*0.35, r*0.35, r*0.15, -0.2, 0, Math.PI*2); ctx.fill();
 
-  // 심지
-  ctx.strokeStyle = '#8D6E63'; ctx.lineWidth = 3; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(bx, by - r); ctx.quadraticCurveTo(bx + 5, by - r - 8, bx + 2, by - r - 14); ctx.stroke();
+  // 심지 (굵게)
+  ctx.strokeStyle = '#795548'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(bx, by - r*0.9); ctx.quadraticCurveTo(bx + 8, by - r - 10, bx + 3, by - r - 18); ctx.stroke();
 
-  // 불꽃 (깜빡임)
-  if (Math.sin(Date.now() * 0.015) > -0.3) {
-    ctx.fillStyle = '#FF9800';
-    ctx.beginPath(); ctx.arc(bx + 2, by - r - 16, 4 + Math.sin(Date.now()*0.02)*2, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#FFEB3B';
-    ctx.beginPath(); ctx.arc(bx + 2, by - r - 17, 2, 0, Math.PI*2); ctx.fill();
-  }
+  // 불꽃 (항상 보임, 크게)
+  const flicker = Math.sin(Date.now()*0.02);
+  ctx.fillStyle = '#FF6D00';
+  ctx.beginPath(); ctx.arc(bx + 3, by - r - 20, 7 + flicker*3, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#FFAB00';
+  ctx.beginPath(); ctx.arc(bx + 3, by - r - 22, 4 + flicker*2, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#FFF9C4';
+  ctx.beginPath(); ctx.arc(bx + 3, by - r - 23, 2, 0, Math.PI*2); ctx.fill();
 
-  // 카운트다운 숫자
+  // 카운트다운 숫자 (크고 굵게)
   ctx.fillStyle = '#FFF';
-  ctx.font = `bold ${r * 0.8}px sans-serif`;
+  ctx.font = `bold ${r * 0.9}px sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(Math.ceil(b.timer), bx, by + 2);
+  ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 4;
+  ctx.fillText(Math.ceil(b.timer), bx, by + 3);
+  ctx.shadowBlur = 0;
 
-  // 진행도 바
-  const barW = r * 2.5, barH = 6;
-  const barX = bx - barW/2, barY = by + r + 10;
-  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  // 진행도 바 (크고 명확하게)
+  const barW = r * 3, barH = 10;
+  const barX = bx - barW/2, barY = by + r + 14;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
   ctx.beginPath();
-  ctx.roundRect?.(barX, barY, barW, barH, 3) || ctx.rect(barX, barY, barW, barH);
+  ctx.roundRect?.(barX, barY, barW, barH, 5) || ctx.rect(barX, barY, barW, barH);
   ctx.fill();
   const prog = b.taps / b.maxTaps;
-  ctx.fillStyle = prog > 0.7 ? '#4CAF50' : prog > 0.4 ? '#FF9800' : '#F44336';
+  ctx.fillStyle = prog > 0.7 ? '#4CAF50' : prog > 0.4 ? '#FFAB00' : '#FF1744';
   ctx.beginPath();
-  ctx.roundRect?.(barX, barY, barW * prog, barH, 3) || ctx.rect(barX, barY, barW * prog, barH);
+  ctx.roundRect?.(barX, barY, barW * prog, barH, 5) || ctx.rect(barX, barY, barW * prog, barH);
   ctx.fill();
 
-  // 연타 힌트
-  ctx.fillStyle = 'rgba(255,255,255,0.8)';
-  ctx.font = `bold 11px sans-serif`;
-  ctx.fillText(`👆 ${b.taps}/${b.maxTaps}`, bx, barY + barH + 14);
+  // 연타 힌트 (크게)
+  ctx.fillStyle = '#FFF';
+  ctx.font = 'bold 13px sans-serif';
+  ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 3;
+  ctx.fillText(`👆 ${b.taps} / ${b.maxTaps}`, bx, barY + barH + 16);
+  ctx.shadowBlur = 0;
 
   ctx.restore();
 }
