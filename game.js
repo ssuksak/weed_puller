@@ -192,7 +192,7 @@ let animTimeout = 0;
 // 폭탄 시스템
 let bomb = null; // { x, y, taps, maxTaps, timer, maxTimer, shake }
 let bombSpawnTimer = 0;
-let bombInterval = 15; // 첫 폭탄 15초 후, 점점 짧아짐
+let bombInterval = 10; // 첫 폭탄 10초 후
 let timeLeft = 60; // 60초 타임어택
 let timerInterval = null;
 
@@ -1191,7 +1191,7 @@ function loop(ts) {
     bombSpawnTimer += dt;
     if (!bomb && bombSpawnTimer >= bombInterval) {
       bombSpawnTimer = 0;
-      bombInterval = Math.max(8, 15 - elapsed * 0.08); // 점점 자주 등장
+      bombInterval = Math.max(5, 10 - elapsed * 0.15); // 점점 자주 등장
       spawnBomb();
     }
     updateBomb(dt);
@@ -1221,8 +1221,8 @@ function startCountdown() {
   swiping = false; clearSwipeHighlight();
   particles = []; score = 0; combo = 0; maxCombo = 0; chainLevel = 0;
   pullCount = 0; elapsed = 0; feverMode = false; gameOver = false;
-  animating = false; timeLeft = 60; isNewRecord = false; currentChain = 0;
-  bomb = null; bombSpawnTimer = 0; bombInterval = 15; animTimeout = 0;
+  animating = false; timeLeft = 30; isNewRecord = false; currentChain = 0;
+  bomb = null; bombSpawnTimer = 0; bombInterval = 10; animTimeout = 0;
   document.getElementById('hud-score').style.color = '';
   document.getElementById('fever-overlay').classList.remove('active');
   document.getElementById('fever-overlay').style.boxShadow = '';
