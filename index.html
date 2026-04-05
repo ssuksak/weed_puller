@@ -294,7 +294,7 @@
 
   <!-- HUD -->
   <div id="hud" class="hidden">
-    <div class="hud-box">🌱 <span id="hud-timer">0%</span></div>
+    <div class="hud-box">⏱ <span id="hud-timer">60s</span></div>
     <div class="hud-box">⭐ <span id="hud-score">0</span></div>
   </div>
   <div id="hud-combo" class="hidden"></div>
@@ -305,11 +305,10 @@
     <div class="game-title">🌱</div>
     <div class="game-title-text">잡초 뽑기</div>
     <div class="game-subtitle">
-      연타해서 잡초를 뽑자!<br>
-      화면이 가득 차면 게임 오버!<br><br>
-      <span>👆 연타 = 뽑기</span>
-      <span>🌸 꽃 = 함정!</span>
-      <span>⭐ 골든 = 대박!</span>
+      같은 잡초끼리 터치하면 한꺼번에 뽑혀!<br><br>
+      <span>👆 2개 이상 연결 = 뽑기</span>
+      <span>💥 연쇄 = 콤보!</span>
+      <span>🔥 20콤보 = FEVER!</span>
     </div>
     <button class="btn-primary" id="btn-start">시작하기</button>
   </div>
@@ -332,7 +331,7 @@
         </div>
         <div class="stat-item">
           <div class="stat-value" id="stat-miss">0</div>
-          <div class="stat-label">꽃 실수</div>
+          <div class="stat-label">최고기록</div>
         </div>
       </div>
       <div id="result-extra"></div>
