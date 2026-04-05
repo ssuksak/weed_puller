@@ -256,7 +256,7 @@ let feverMode = false, feverTimer = 0;
 let screenShake = 0, shakeX = 0, shakeY = 0;
 
 // ============ GRID ============
-const COLS = 5, ROWS = 7;
+const COLS = 6, ROWS = 8;
 let gridX = 0, gridY = 0, cellW = 0, cellH = 0;
 const occupied = new Set();
 function cellKey(c,r) { return `${c},${r}`; }
@@ -378,7 +378,7 @@ class Plant {
     this.taps = 0;
     this.x = gridX + col * cellW + cellW / 2;
     this.y = gridY + row * cellH + cellH / 2;
-    this.r = Math.min(cellW, cellH) * 0.22;
+    this.r = Math.min(cellW, cellH) * 0.24;
     this.growAnim = 0;
     this.growStage = 1; // 1~3
     this.growTimer = 0;
@@ -848,19 +848,7 @@ function drawBG() {
       bg.fill();
     }
 
-    // 이랑 사이 골 (어두운 줄)
-    bg.strokeStyle = 'rgba(0,0,0,0.1)'; bg.lineWidth = 1;
-    for (let r=1; r<ROWS; r++) {
-      const ly = gridY + r * cellH;
-      bg.beginPath(); bg.moveTo(bx+4, ly); bg.lineTo(bx+bW-4, ly); bg.stroke();
-    }
-
-    // 세로 구분 (은은하게)
-    bg.strokeStyle = 'rgba(0,0,0,0.04)'; bg.setLineDash([6,6]);
-    for (let c=1; c<COLS; c++) {
-      bg.beginPath(); bg.moveTo(gridX+c*cellW, by+4); bg.lineTo(gridX+c*cellW, by+bH-4); bg.stroke();
-    }
-    bg.setLineDash([]);
+    // 격자선 없음 — 이랑 볼록함만으로 구분
 
     // 흙 텍스처 (작은 돌, 흙덩이)
     for (let i=0; i<50; i++) {
