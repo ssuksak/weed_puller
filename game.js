@@ -444,27 +444,123 @@ const FLOWER_TYPES = [
   { name:'튤립', color:'#2E7D32', inner:'#F48FB1', face:'cute', petal:'#E91E63', petalN:5 },
 ];
 
+// ============ ITEMS & EVENTS ============
+let items = []; // 드롭 아이템
+let rainEvent = false;
+let rainTimer = 0;
+let moleTimer = 0;
+
+class Item {
+  constructor(x, y, type) {
+    this.x = x; this.y = y; this.type = type; // 'shovel', 'freeze', 'fertilizer'
+    this.life = 6; // 6초 후 사라짐
+    this.r = Math.min(cellW, cellH) * 0.2;
+    this.wobble = Math.random() * Math.PI * 2;
+    this.collected = false;
+  }
+  update(dt) {
+    this.wobble += dt * 4;
+    this.life -= dt;
+  }
+  draw() {
+    if (this.collected || this.life <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = this.life < 2 ? this.life / 2 : 1;
+    const bounce = Math.sin(this.wobble) * 3;
+    const emoji = this.type === 'shovel' ? '🔨' : this.type === 'freeze' ? '❄️' : '💊';
+    ctx.font = `${this.r * 2}px serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(emoji, this.x, this.y + bounce);
+    // 빛나는 원
+    ctx.strokeStyle = this.type === 'shovel' ? '#FF9800' : this.type === 'freeze' ? '#03A9F4' : '#4CAF50';
+    ctx.lineWidth = 2;
+    ctx.globalAlpha *= 0.3 + Math.sin(this.wobble * 2) * 0.2;
+    ctx.beginPath(); ctx.arc(this.x, this.y + bounce, this.r * 1.3, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+  contains(px, py) {
+    return (px - this.x) ** 2 + (py - this.y) ** 2 < (this.r * 1.5) ** 2;
+  }
+}
+
+function useItem(item) {
+  item.collected = true;
+  if (item.type === 'shovel') {
+    // 가장 잡초 많은 행 전체 제거
+    let bestRow = 0, bestCount = 0;
+    for (let r = 0; r < ROWS; r++) {
+      let cnt = 0;
+      plants.forEach(p => { if (p.row === r && !p.isPulled && !p.isFlower) cnt++; });
+      if (cnt > bestCount) { bestCount = cnt; bestRow = r; }
+    }
+    plants.forEach(p => {
+      if (p.row === bestRow && !p.isPulled) {
+        p.isPulled = true; p.face = 'dead'; p.pullDir = { x: 0, y: -1 };
+        occupied.delete(cellKey(p.col, p.row));
+        burst(p.x, p.y, '#FF9800', 5);
+        score += 5;
+      }
+    });
+    showFB(canvas.width / 2 - 40, gridY + bestRow * cellH, '🔨 한 줄 제거!', '#FF9800', 22);
+    sfx('golden'); triggerShake(6);
+  } else if (item.type === 'freeze') {
+    // 5초간 성장/번식 멈춤
+    plants.forEach(p => { p.growTimer = -5; p.spreadTimer = -5; });
+    showFB(canvas.width / 2 - 40, canvas.height * 0.4, '❄️ 5초 동결!', '#03A9F4', 24);
+    sfx('survive');
+  } else if (item.type === 'fertilizer') {
+    // 모든 잡초 1단계 축소 (큰→중, 중→작)
+    plants.forEach(p => {
+      if (!p.isPulled && !p.isFlower && !p.isGolden && p.growStage > 1) {
+        p.growStage--;
+        p.r *= 0.85;
+        p.maxTaps = [0, 3, 5, 8][p.growStage];
+        p.taps = Math.min(p.taps, p.maxTaps - 1);
+      }
+    });
+    showFB(canvas.width / 2 - 40, canvas.height * 0.4, '💊 축소!', '#4CAF50', 24);
+    sfx('survive');
+  }
+  pullCount++;
+  updateHUD();
+}
+
 // ============ PLANT ============
 // size: 1=작음(3탭), 2=중간(5탭), 3=큼(8탭)
 // golden: 특수 (5탭, 대박 점수)
+// bomb: 시간 내 못 뽑으면 폭발 (주변 잡초 생성)
+// mole: 이동하는 두더지 (잡으면 보너스)
 class Plant {
   constructor(col, row, opts = {}) {
     this.col = col; this.row = row;
     this.isFlower = opts.flower || false;
     this.isGolden = opts.golden || false;
+    this.isBomb = opts.bomb || false;
+    this.isMole = opts.mole || false;
 
-    if (this.isGolden) {
+    if (this.isMole) {
+      this.type = { name:'두더지', color:'#795548', inner:'#D7CCC8', face:'surprised', leaves:0, leafL:0 };
+      this.maxTaps = 2;
+      this.points = 40;
+      this.moveTimer = 0;
+      this.moveInterval = 1.5 + Math.random(); // 1.5~2.5초마다 이동
+    } else if (this.isBomb) {
+      this.type = { name:'폭탄잡초', color:'#D32F2F', inner:'#FF8A80', face:'angry', leaves:5, leafL:10 };
+      this.maxTaps = 4;
+      this.points = 30;
+      this.fuseTimer = 5 + Math.random() * 3; // 5~8초 후 폭발
+    } else if (this.isGolden) {
       this.type = { name:'골든잡초', color:'#FFD700', inner:'#FFF9C4', face:'golden', leaves:6, leafL:14 };
       this.maxTaps = 5;
       this.points = 100;
     } else if (this.isFlower) {
       const ft = FLOWER_TYPES[Math.floor(Math.random()*FLOWER_TYPES.length)];
       this.type = ft;
-      this.maxTaps = 1; // 1탭에 바로 뽑힘 (함정)
+      this.maxTaps = 1;
       this.points = -30;
     } else {
       this.type = WEED_TYPES[Math.floor(Math.random()*WEED_TYPES.length)];
-      this.maxTaps = 3; // 기본, growStage에 따라 증가
+      this.maxTaps = 3;
       this.points = 10;
     }
 
@@ -473,7 +569,7 @@ class Plant {
     this.y = gridY + row * cellH + cellH / 2;
     this.r = Math.min(cellW, cellH) * 0.24;
     this.growAnim = 0;
-    this.growStage = 1; // 1~3
+    this.growStage = 1;
     this.growTimer = 0;
     this.isPulled = false;
     this.opacity = 1;
@@ -481,7 +577,7 @@ class Plant {
     this.face = this.type.face;
     this.shake = 0;
     this.pullDir = {x:0,y:0};
-    this.spreadTimer = 0; // 번식 타이머
+    this.spreadTimer = 0;
   }
 
   get progress() { return this.taps / this.maxTaps; }
@@ -497,8 +593,60 @@ class Plant {
       return;
     }
 
-    // 성장 (잡초만, 꽃/골든 제외)
-    if (!this.isFlower && !this.isGolden && this.growStage < 3) {
+    // 폭탄 카운트다운
+    if (this.isBomb) {
+      this.fuseTimer -= dt;
+      if (this.fuseTimer <= 0) {
+        // 폭발! 주변 4칸에 잡초 생성
+        this.isPulled = true; this.face = 'dead';
+        occupied.delete(cellKey(this.col, this.row));
+        burst(this.x, this.y, '#FF1744', 15);
+        burst(this.x, this.y, '#FF9100', 10);
+        sfx('miss'); triggerShake(12);
+        showFB(this.x, this.y, '💥 폭발!', '#FF1744', 28);
+        combo = 0;
+        // 주변에 잡초 생성
+        [[0,-1],[0,1],[-1,0],[1,0]].forEach(([dc,dr]) => {
+          const nc = this.col+dc, nr = this.row+dr;
+          if (nc>=0 && nc<COLS && nr>=0 && nr<ROWS && !occupied.has(cellKey(nc,nr))) {
+            const p = new Plant(nc, nr);
+            plants.push(p); occupied.add(cellKey(nc,nr));
+          }
+        });
+        updateHUD();
+        return;
+      }
+      // 깜빡임 (남은 시간 적을수록 빠르게)
+      if (this.fuseTimer < 2) {
+        this.shake = Math.sin(Date.now() * 0.02) * 4;
+      }
+    }
+
+    // 두더지 이동
+    if (this.isMole) {
+      this.moveTimer += dt;
+      if (this.moveTimer >= this.moveInterval) {
+        this.moveTimer = 0;
+        // 빈 인접 칸으로 이동
+        const dirs = [[0,-1],[0,1],[-1,0],[1,0]].sort(() => Math.random() - 0.5);
+        for (const [dc,dr] of dirs) {
+          const nc = this.col+dc, nr = this.row+dr;
+          if (nc>=0 && nc<COLS && nr>=0 && nr<ROWS && !occupied.has(cellKey(nc,nr))) {
+            occupied.delete(cellKey(this.col, this.row));
+            this.col = nc; this.row = nr;
+            this.x = gridX + nc * cellW + cellW / 2;
+            this.y = gridY + nr * cellH + cellH / 2;
+            occupied.add(cellKey(nc, nr));
+            this.taps = 0; // 이동하면 탭 리셋
+            sfx('pop');
+            break;
+          }
+        }
+      }
+    }
+
+    // 성장 (잡초만, 꽃/골든/폭탄/두더지 제외)
+    if (!this.isFlower && !this.isGolden && !this.isBomb && !this.isMole && this.growStage < 3) {
       this.growTimer += dt;
       const growTime = 8 - Math.min(elapsed * 0.05, 4); // 시간 지날수록 빨리 자람
       if (this.growTimer > growTime) {
@@ -513,7 +661,7 @@ class Plant {
     }
 
     // 번식 (큰 잡초만)
-    if (!this.isFlower && !this.isGolden && this.growStage >= 3) {
+    if (!this.isFlower && !this.isGolden && !this.isBomb && !this.isMole && this.growStage >= 3) {
       this.spreadTimer += dt;
       const spreadTime = 10 - Math.min(elapsed * 0.03, 5);
       if (this.spreadTimer > spreadTime) {
@@ -539,7 +687,46 @@ class Plant {
     ctx.fillStyle = 'rgba(0,0,0,0.12)';
     ctx.beginPath(); ctx.ellipse(x, y+r*0.7, r*0.8, r*0.25, 0, 0, Math.PI*2); ctx.fill();
 
-    if (this.isGolden) {
+    if (this.isMole) {
+      // 두더지 — 둥근 갈색 몸체
+      ctx.fillStyle = '#795548';
+      ctx.beginPath(); ctx.arc(x, y, r * 0.6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#D7CCC8';
+      ctx.beginPath(); ctx.arc(x, y - r * 0.1, r * 0.35, 0, Math.PI * 2); ctx.fill();
+      // 코
+      ctx.fillStyle = '#FF8A80';
+      ctx.beginPath(); ctx.arc(x, y + r * 0.05, 3, 0, Math.PI * 2); ctx.fill();
+      drawFace(this.isPulled ? 'dead' : 'surprised', x, y, r);
+      // 발
+      ctx.fillStyle = '#5D4037';
+      ctx.beginPath();
+      ctx.ellipse(x - r * 0.4, y + r * 0.4, 5, 3, -0.3, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(x + r * 0.4, y + r * 0.4, 5, 3, 0.3, 0, Math.PI * 2); ctx.fill();
+    } else if (this.isBomb) {
+      // 폭탄 잡초 — 빨간 몸체 + 카운트다운
+      const pulse = Math.sin(Date.now() * 0.01) * 0.15;
+      ctx.fillStyle = `rgba(255,0,0,${0.15 + pulse})`;
+      ctx.beginPath(); ctx.arc(x, y, r * 1.3, 0, Math.PI * 2); ctx.fill();
+      // 잎
+      ctx.fillStyle = '#D32F2F';
+      for (let i = 0; i < 5; i++) {
+        const a = (i/5)*Math.PI*2 + Math.sin(this.wobble+i)*0.2;
+        ctx.save(); ctx.translate(x,y); ctx.rotate(a);
+        ctx.beginPath(); ctx.ellipse(r*0.5,0,r*0.35,r*0.15,0,0,Math.PI*2); ctx.fill();
+        ctx.restore();
+      }
+      ctx.fillStyle = '#D32F2F'; ctx.beginPath(); ctx.arc(x,y,r*0.5,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#FF8A80'; ctx.beginPath(); ctx.arc(x,y,r*0.35,0,Math.PI*2); ctx.fill();
+      drawFace(this.isPulled ? 'dead' : 'angry', x, y, r);
+      // 카운트다운 숫자
+      if (this.fuseTimer !== undefined) {
+        ctx.fillStyle = '#FFF';
+        ctx.font = `bold ${r * 0.5}px sans-serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(Math.ceil(this.fuseTimer), x, y + r + 8);
+      }
+    } else if (this.isGolden) {
       // 골든 글로우
       ctx.fillStyle = 'rgba(255,215,0,0.2)';
       ctx.beginPath(); ctx.arc(x, y, r*1.5 + Math.sin(this.wobble*2)*3, 0, Math.PI*2); ctx.fill();
@@ -687,22 +874,21 @@ function spawnPlant() {
   if (!empty.length) return;
   const cell = empty[Math.floor(Math.random()*empty.length)];
 
-  // 골든잡초 (3% 확률)
-  if (Math.random() < 0.03) {
-    const p = new Plant(cell.c, cell.r, { golden: true });
-    plants.push(p); occupied.add(cellKey(cell.c,cell.r));
-    sfx('pop'); return;
+  const rand = Math.random();
+  let opts = {};
+
+  if (rand < 0.03) {
+    opts = { golden: true }; // 3% 골든
+  } else if (rand < 0.03 + Math.min(wave * 0.02, 0.12)) {
+    opts = { bomb: true }; // 웨이브 증가에 따라 폭탄 확률 증가 (2~12%)
+  } else if (rand < 0.03 + Math.min(wave * 0.02, 0.12) + 0.04) {
+    opts = { mole: true }; // 4% 두더지
+  } else if (rand < 0.03 + Math.min(wave * 0.02, 0.12) + 0.04 + Math.min(0.15 + elapsed * 0.002, 0.3)) {
+    opts = { flower: true }; // 꽃
   }
-  // 꽃 (15~30%)
-  const flowerRate = Math.min(0.15 + elapsed * 0.002, 0.3);
-  if (Math.random() < flowerRate) {
-    const p = new Plant(cell.c, cell.r, { flower: true });
-    plants.push(p); occupied.add(cellKey(cell.c,cell.r));
-    sfx('pop'); return;
-  }
-  // 잡초
-  const p = new Plant(cell.c, cell.r);
-  plants.push(p); occupied.add(cellKey(cell.c,cell.r));
+
+  const p = new Plant(cell.c, cell.r, opts);
+  plants.push(p); occupied.add(cellKey(cell.c, cell.r));
   sfx('pop');
 }
 
@@ -817,6 +1003,16 @@ function onTap(e) {
   if (!gameRunning) return;
   e.preventDefault?.();
   const { x, y } = pos(e);
+
+  // 아이템 터치 체크 (우선)
+  for (let i = items.length - 1; i >= 0; i--) {
+    if (!items[i].collected && items[i].contains(x, y)) {
+      useItem(items[i]);
+      return;
+    }
+  }
+
+  // 식물 터치
   for (let i = plants.length-1; i >= 0; i--) {
     if (!plants[i].isPulled && plants[i].contains(x, y)) {
       tapPlant(plants[i]);
@@ -1090,6 +1286,35 @@ function loop(ts) {
       if (feverTimer <= 0) { feverMode = false; invalidateBgCache(); document.getElementById('fever-overlay').classList.remove('active'); }
     }
 
+    // 아이템 드롭 (15초마다 + 랜덤)
+    if (Math.floor(elapsed) % 15 === 0 && Math.floor(elapsed) !== Math.floor(elapsed - dt) && elapsed > 5) {
+      const types = ['shovel', 'freeze', 'fertilizer'];
+      const iType = types[Math.floor(Math.random() * types.length)];
+      const ix = gridX + Math.random() * (cellW * COLS);
+      const iy = gridY + cellH * ROWS + 30 + Math.random() * 40;
+      items.push(new Item(ix, iy, iType));
+      showFB(ix, iy - 20, '⬇️ 아이템!', '#FFF', 16);
+    }
+
+    // 비 이벤트 (30초마다 5초간)
+    if (!rainEvent && Math.floor(elapsed) > 0 && Math.floor(elapsed) % 30 === 0 && Math.floor(elapsed) !== Math.floor(elapsed - dt)) {
+      rainEvent = true; rainTimer = 5;
+      showFB(canvas.width/2 - 30, canvas.height * 0.35, '🌧️ 비!', '#2196F3', 28);
+      sfx('warning');
+    }
+    if (rainEvent) {
+      rainTimer -= dt;
+      if (rainTimer <= 0) { rainEvent = false; }
+      else {
+        // 비 내리는 동안 성장 3배 가속
+        plants.forEach(p => { if (!p.isPulled && !p.isFlower && !p.isGolden && !p.isBomb && !p.isMole) p.growTimer += dt * 2; });
+      }
+    }
+
+    // 아이템 업데이트
+    items.forEach(it => it.update(dt));
+    items = items.filter(it => it.life > 0 && !it.collected);
+
     // 업적 체크 (2초마다)
     if (Math.floor(elapsed) % 2 === 0 && Math.floor(elapsed) !== Math.floor(elapsed - dt)) {
       checkBadges();
@@ -1127,7 +1352,19 @@ function loop(ts) {
   plants.forEach(p => p.update(dt));
   plants = plants.filter(p => p.opacity > 0);
   plants.forEach(p => p.draw());
+  items.forEach(it => it.draw());
   updateParticles(dt); drawParticles();
+
+  // 비 이펙트
+  if (rainEvent) {
+    ctx.strokeStyle = 'rgba(100,180,255,0.3)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 30; i++) {
+      const rx = Math.random() * canvas.width;
+      const ry = (Date.now() * 0.5 + i * 50) % canvas.height;
+      ctx.beginPath(); ctx.moveTo(rx, ry); ctx.lineTo(rx - 2, ry + 10); ctx.stroke();
+    }
+  }
 
   if (gameRunning) updateHUD();
 
@@ -1148,6 +1385,7 @@ function startCountdown() {
   score=0; combo=0; maxCombo=0; elapsed=0;
   pullCount=0; flowerMissCount=0; feverMode=false; gameOver=false;
   wave=1; waveTimer=0; dangerLevel=0; wasDanger=false; heartbeatTimer=0;
+  items=[]; rainEvent=false; rainTimer=0; moleTimer=0;
   goldenCount=0; surviveCount=0; isNewRecord=false;
   badgeQueue=[]; currentBadge=null; badgeShowTimer=0;
   document.getElementById('hud-score').style.color='';
