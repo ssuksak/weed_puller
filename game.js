@@ -1247,7 +1247,7 @@ function startCountdown() {
 }
 
 function startGame() {
-  gameRunning = true; resize(); startBGM();
+  gameRunning = true; timeLeft = 30; resize(); startBGM(); updateHUD();
   clearInterval(timerInterval);
   timerInterval = setInterval(() => {
     timeLeft--; updateHUD();
