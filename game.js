@@ -222,11 +222,11 @@ resize();
 
 // ============ WEED TYPES ============
 const TYPES = [
-  { id: 0, name: '민들레', color: '#7CB342', inner: '#AED581', face: 'angry', leaves: 5 },
-  { id: 1, name: '바랭이', color: '#558B2F', inner: '#8BC34A', face: 'surprised', leaves: 3 },
-  { id: 2, name: '쇠비름', color: '#BF360C', inner: '#E57373', face: 'happy', leaves: 7 },
-  { id: 3, name: '명아주', color: '#33691E', inner: '#9CCC65', face: 'angry', leaves: 4 },
-  { id: 4, name: '질경이', color: '#4E342E', inner: '#A1887F', face: 'surprised', leaves: 6 },
+  { id: 0, name: '민들레', color: '#8BC34A', inner: '#DCEDC8', face: 'angry', leaves: 5 },
+  { id: 1, name: '바랭이', color: '#42A5F5', inner: '#BBDEFB', face: 'surprised', leaves: 3 },
+  { id: 2, name: '쇠비름', color: '#EF5350', inner: '#FFCDD2', face: 'happy', leaves: 7 },
+  { id: 3, name: '명아주', color: '#FFA726', inner: '#FFE0B2', face: 'angry', leaves: 4 },
+  { id: 4, name: '질경이', color: '#AB47BC', inner: '#E1BEE7', face: 'surprised', leaves: 6 },
 ];
 
 // ============ CELL ============
@@ -810,7 +810,7 @@ function drawBG() {
     // 하늘
     const sky = bg.createLinearGradient(0, 0, 0, gridY);
     if (feverMode) { sky.addColorStop(0, '#FF6F00'); sky.addColorStop(1, '#FFB74D'); }
-    else { sky.addColorStop(0, '#87CEEB'); sky.addColorStop(1, '#E0F7FA'); }
+    else { sky.addColorStop(0, '#64B5F6'); sky.addColorStop(1, '#E1F5FE'); }
     bg.fillStyle = sky; bg.fillRect(0, 0, W, gridY);
     if (!feverMode) {
       bg.fillStyle = 'rgba(255,255,255,0.6)';
@@ -820,23 +820,23 @@ function drawBG() {
       });
     }
     // 언덕
-    bg.fillStyle = feverMode ? '#E65100' : '#66BB6A';
+    bg.fillStyle = feverMode ? '#FF8A65' : '#81C784';
     bg.beginPath(); bg.moveTo(0, gridY);
     for (let x = 0; x <= W; x += 20) bg.lineTo(x, gridY - 12 - Math.sin(x * 0.015) * 10);
     bg.lineTo(W, gridY); bg.closePath(); bg.fill();
     // 잔디
     const gg = bg.createLinearGradient(0, gridY, 0, H);
     if (feverMode) { gg.addColorStop(0, '#E65100'); gg.addColorStop(1, '#BF360C'); }
-    else { gg.addColorStop(0, '#558B2F'); gg.addColorStop(1, '#1B5E20'); }
+    else { gg.addColorStop(0, '#81C784'); gg.addColorStop(1, '#4CAF50'); }
     bg.fillStyle = gg; bg.fillRect(0, gridY, W, H - gridY);
     // 밭
     const bw = 6, px = 8, py = 4;
     const bx = gridX - px, by = gridY - py, bW = cellW * COLS + px * 2, bH = cellH * ROWS + py * 2;
     bg.fillStyle = 'rgba(0,0,0,0.15)'; bgRR(bg, bx - bw + 2, by - bw + 2, bW + bw * 2, bH + bw * 2, 10);
-    bg.fillStyle = feverMode ? '#D84315' : '#6D4C41'; bgRR(bg, bx - bw, by - bw, bW + bw * 2, bH + bw * 2, 10);
+    bg.fillStyle = feverMode ? '#FF7043' : '#8D6E63'; bgRR(bg, bx - bw, by - bw, bW + bw * 2, bH + bw * 2, 10);
     const dirt = bg.createLinearGradient(bx, by, bx, by + bH);
-    dirt.addColorStop(0, feverMode ? '#A1887F' : '#8D6E63');
-    dirt.addColorStop(1, feverMode ? '#795548' : '#6D4C41');
+    dirt.addColorStop(0, feverMode ? '#BCAAA4' : '#BCAAA4');
+    dirt.addColorStop(1, feverMode ? '#A1887F' : '#8D6E63');
     bg.fillStyle = dirt; bgRR(bg, bx, by, bW, bH, 6);
     // 이랑
     for (let r = 0; r < ROWS; r++) {
