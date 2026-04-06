@@ -204,7 +204,7 @@ function sfx(type, extra) {
 
 // ============ STATE ============
 const COLS = 6, ROWS = 8;
-const WEED_COUNT = 5; // 잡초 종류 수
+const WEED_COUNT = 4; // 4종류 (매치 확률 높이기)
 let grid = []; // grid[col][row] = { type, x, y, targetY, ... }
 let particles = [];
 let score = 0, combo = 0, maxCombo = 0, chainLevel = 0;
@@ -570,15 +570,27 @@ function initGrid() {
       grid[c][r] = new Cell(c, r, randomType());
     }
   }
-  // 3개+ 매치가 최소 3개는 있도록 보장
+  ensureMatches();
+}
+
+// 매치 최소 3개 보장 — 없으면 강제로 만들기
+function ensureMatches() {
   let safety = 0;
-  while (!hasAnyMatch() && safety < 50) {
-    // 랜덤으로 일부 셀 타입 변경
-    for (let i = 0; i < 8; i++) {
-      const rc = Math.floor(Math.random() * COLS);
-      const rr = Math.floor(Math.random() * ROWS);
-      if (grid[rc][rr]) grid[rc][rr].typeId = grid[rc][rr > 0 ? rr-1 : rr+1]?.typeId ?? randomType();
-      if (grid[rc][rr]) grid[rc][rr].type = TYPES[grid[rc][rr].typeId];
+  while (!hasAnyMatch() && safety < 30) {
+    // 랜덤 위치에 가로 3개 또는 세로 3개 같은 타입으로 설정
+    const t = randomType();
+    if (Math.random() > 0.5 && COLS >= 3) {
+      const c = Math.floor(Math.random() * (COLS - 2));
+      const r = Math.floor(Math.random() * ROWS);
+      for (let i = 0; i < 3; i++) {
+        if (grid[c+i] && grid[c+i][r]) { grid[c+i][r].typeId = t; grid[c+i][r].type = TYPES[t]; }
+      }
+    } else {
+      const c = Math.floor(Math.random() * COLS);
+      const r = Math.floor(Math.random() * (ROWS - 2));
+      for (let i = 0; i < 3; i++) {
+        if (grid[c] && grid[c][r+i]) { grid[c][r+i].typeId = t; grid[c][r+i].type = TYPES[t]; }
+      }
     }
     safety++;
   }
@@ -856,6 +868,7 @@ function shuffleGrid() {
     }
     attempts++;
   } while (!hasAnyMatch() && attempts < 20);
+  ensureMatches(); // 최종 보장
 }
 
 // ============ PARTICLES ============
@@ -1291,6 +1304,18 @@ function loop(ts) {
   // 게임 업데이트
   if (gameRunning) {
     elapsed += dt;
+
+    // 매 프레임 모든 셀 위치 강제 세팅
+    for (let c = 0; c < COLS; c++) {
+      if (!grid[c]) continue;
+      for (let r = 0; r < grid[c].length; r++) {
+        if (!grid[c][r]) continue;
+        grid[c][r].col = c;
+        grid[c][r].row = r;
+        grid[c][r].targetY = gridY + r * cellH + cellH / 2;
+        grid[c][r].x = gridX + c * cellW + cellW / 2;
+      }
+    }
 
     let needsDrop = false;
     for (let c = 0; c < COLS; c++) {
