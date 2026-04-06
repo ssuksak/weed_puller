@@ -21,16 +21,30 @@ function initAudio() {
   if (audioCtx.state === 'suspended') audioCtx.resume();
 }
 
-const BGM_MEL = [
-  [392,0.5],[370,0.25],[349,0.25],[330,0.5],[294,0.25],[330,0.25],
-  [349,0.5],[392,0.5],[440,0.5],[392,0.5],
-  [370,0.5],[349,0.25],[330,0.25],[294,0.5],[262,0.25],[294,0.25],
-  [330,0.5],[349,0.5],[392,1],
+// 🎵 동화풍 멜로디 (부드럽고 밝게)
+const BGM_CALM = [
+  [523,1],[494,0.5],[523,0.5],[587,1],[523,1],
+  [494,0.5],[440,0.5],[494,1],[523,1],
+  [440,1],[392,0.5],[440,0.5],[494,1],[440,1],
+  [392,0.5],[349,0.5],[392,1],[440,1],
 ];
-const BGM_BASS = [[131,1],[147,1],[165,1],[131,1],[147,1],[165,1],[175,1],[131,1]];
-const BGM_FEVER = [
-  [523,0.25],[587,0.25],[659,0.25],[698,0.25],[784,0.5],[659,0.25],[587,0.25],
-  [523,0.25],[587,0.25],[784,0.5],[698,0.25],[659,0.25],[587,0.5],[523,0.5],[659,1],
+// 🎵 중반 멜로디 (약간 긴장)
+const BGM_MID = [
+  [523,0.5],[587,0.5],[659,0.5],[587,0.5],
+  [523,0.5],[494,0.5],[523,1],
+  [587,0.5],[659,0.5],[698,0.5],[659,0.5],
+  [587,0.5],[523,0.5],[587,1],
+];
+// 🎵 긴장 멜로디 (빠르고 단조)
+const BGM_TENSE = [
+  [523,0.25],[494,0.25],[466,0.25],[440,0.25],
+  [466,0.5],[523,0.5],[587,0.5],[523,0.5],
+  [494,0.25],[466,0.25],[440,0.25],[392,0.25],
+  [440,0.5],[494,0.5],[523,1],
+];
+const BGM_BASS = [
+  [131,1],[165,1],[147,1],[131,1],
+  [165,1],[175,1],[147,1],[131,1],
 ];
 
 function startBGM() {
@@ -43,9 +57,10 @@ function startBGM() {
 function scheduleBGM() {
   if (!bgmPlaying || !audioCtx) return;
   const mel = feverMode ? BGM_FEVER : BGM_MEL;
-  // 마지막 5초에만 빨라짐
-  const urgency = timeLeft <= 5 ? 0.11 : 0.15;
-  const tempo = feverMode ? 0.13 : urgency;
+  // 시간에 따라 점진적으로 빨라짐
+  const gameProgress = 1 - (timeLeft / 30); // 0→1
+  const baseTempo = 0.18 - gameProgress * 0.06; // 0.18→0.12
+  const tempo = feverMode ? Math.min(baseTempo, 0.13) : Math.max(baseTempo, 0.10);
   const mk = (type, freq, time, dur, vol) => {
     const o = audioCtx.createOscillator(), g = audioCtx.createGain();
     o.connect(g); g.connect(bgmGain); o.type = type;
@@ -55,30 +70,37 @@ function scheduleBGM() {
     o.start(time); o.stop(time + dur);
   };
   while (bgmNextTime < audioCtx.currentTime + 0.5) {
-    const useMel = timeLeft <= 5 ? BGM_FEVER : mel;
+    // 시간에 따라 멜로디 전환: 동화풍 → 중반 → 긴장
+    const useMel = timeLeft <= 5 ? BGM_TENSE : timeLeft <= 15 ? BGM_MID : BGM_CALM;
     const [f, d] = useMel[bgmIdx % useMel.length];
-    const waveType = feverMode || timeLeft <= 5 ? 'square' : 'triangle';
-    mk(waveType, f, bgmNextTime, d * tempo * 0.9, 0.3);
+    // 악기: 시간 갈수록 날카로워짐
+    const waveType = timeLeft <= 5 ? 'square' : timeLeft <= 12 ? 'triangle' : 'sine';
+    // 볼륨: 시간 갈수록 커짐
+    const vol = 0.2 + gameProgress * 0.15;
+    mk(waveType, f, bgmNextTime, d * tempo * 0.9, vol);
     bgmNextTime += d * tempo; bgmIdx++;
   }
   const bt = tempo * 4;
   while (bgmBassNext < audioCtx.currentTime + 0.5) {
     const [f, d] = BGM_BASS[bgmBassIdx % BGM_BASS.length];
-    mk('sawtooth', f, bgmBassNext, d * bt * 0.4, 0.2);
-    mk('sine', f * 0.5, bgmBassNext, d * bt * 0.3, 0.15);
+    const bassVol = 0.08 + gameProgress * 0.15; // 처음 약하게 → 점점 강하게
+    const bassType = timeLeft <= 10 ? 'sawtooth' : 'sine'; // 처음 부드럽게 → 나중 거칠게
+    mk(bassType, f, bgmBassNext, d * bt * 0.4, bassVol);
+    if (gameProgress > 0.3) mk('sine', f * 0.5, bgmBassNext, d * bt * 0.3, bassVol * 0.6);
     bgmBassNext += d * bt; bgmBassIdx++;
   }
-  const dt2 = timeLeft <= 5 ? tempo * 1.5 : tempo * 2;
+  const dt2 = tempo * (2 - gameProgress * 0.7); // 점진적으로 빨라짐
   while (bgmDrumNext < audioCtx.currentTime + 0.5) {
     const beat = bgmDrumBeat % 4;
-    if (beat === 0 || beat === 2) mk('sine', 150, bgmDrumNext, 0.1, 0.4);
+    const kickVol = 0.15 + gameProgress * 0.25; // 처음 살짝 → 나중 쿵쿵
+    if (beat === 0 || beat === 2) mk('sine', 150, bgmDrumNext, 0.1, kickVol);
     if (beat === 1 || beat === 3) {
       const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.04, audioCtx.sampleRate);
       const sn = buf.getChannelData(0);
       for (let i = 0; i < sn.length; i++) sn[i] = (Math.random() * 2 - 1) * (1 - i / sn.length);
       const n = audioCtx.createBufferSource(), ng = audioCtx.createGain();
       n.buffer = buf; n.connect(ng); ng.connect(bgmGain);
-      ng.gain.setValueAtTime(0.15, bgmDrumNext);
+      ng.gain.setValueAtTime(0.05 + gameProgress * 0.12, bgmDrumNext);
       ng.gain.exponentialRampToValueAtTime(0.01, bgmDrumNext + 0.04);
       n.start(bgmDrumNext);
     }
