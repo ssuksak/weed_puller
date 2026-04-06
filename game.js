@@ -705,7 +705,7 @@ function removeGroup(group, chain) {
         nc.x = gridX + c * cellW + cellW / 2;
         nc.scale = 0;
         // 폭탄 스폰
-        if (swipeCount >= nextBombAt && !hasBombInGrid() && i === 0 && !newCells.some(n => n.isBomb)) {
+        if (swipeCount >= nextBombAt && countBombsInGrid() < maxBombsAllowed() && i === 0 && !newCells.some(n => n.isBomb)) {
           nc.isBomb = true;
           bombCount++;
           nextBombAt = swipeCount + Math.max(2, 4 - Math.floor(bombCount * 0.3));
@@ -751,7 +751,7 @@ function dropColumns() {
       newCell.scale = 0;
 
       // 폭탄
-      if (!bombPlaced && swipeCount >= nextBombAt && !hasBombInGrid() && i === 0) {
+      if (!bombPlaced && swipeCount >= nextBombAt && countBombsInGrid() < maxBombsAllowed() && i === 0) {
         newCell.isBomb = true;
         bombCount++;
         nextBombAt = swipeCount + Math.max(2, 4 - Math.floor(bombCount * 0.3));
@@ -891,14 +891,23 @@ function showFB(x, y, text, color, size = 22) {
 function triggerShake(n) { screenShake = n; }
 
 // ============ BOMB SYSTEM (그리드 내 폭탄) ============
-function hasBombInGrid() {
+function countBombsInGrid() {
+  let count = 0;
   for (let c = 0; c < COLS; c++) {
     if (!grid[c]) continue;
     for (let r = 0; r < grid[c].length; r++) {
-      if (grid[c][r] && grid[c][r].isBomb && !grid[c][r].removing) return true;
+      if (grid[c][r] && grid[c][r].isBomb && !grid[c][r]._dead) count++;
     }
   }
-  return false;
+  return count;
+}
+function hasBombInGrid() { return countBombsInGrid() > 0; }
+
+// 시간에 따라 허용되는 최대 폭탄 수
+function maxBombsAllowed() {
+  if (elapsed < 10) return 1;
+  if (elapsed < 20) return 2;
+  return 3;
 }
 
 function findBombCell() {
@@ -1280,8 +1289,10 @@ function loop(ts) {
   drawParticles();
   if (swiping) drawSwipeLine();
 
-  // 그리드 무결성 체크 (매 프레임)
+  // 게임 업데이트
   if (gameRunning) {
+    elapsed += dt;
+
     let needsDrop = false;
     for (let c = 0; c < COLS; c++) {
       if (!grid[c] || grid[c].length !== ROWS) { needsDrop = true; break; }
