@@ -45,7 +45,7 @@ function scheduleBGM() {
   const mel = feverMode ? BGM_FEVER : BGM_MEL;
   // 마지막 5초에만 빨라짐
   const urgency = timeLeft <= 5 ? 0.11 : 0.15;
-  const tempo = feverMode ? 0.10 : urgency;
+  const tempo = feverMode ? 0.13 : urgency;
   const mk = (type, freq, time, dur, vol) => {
     const o = audioCtx.createOscillator(), g = audioCtx.createGain();
     o.connect(g); g.connect(bgmGain); o.type = type;
