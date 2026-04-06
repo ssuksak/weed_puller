@@ -189,10 +189,14 @@ let screenShake = 0, shakeX = 0, shakeY = 0;
 let animating = false;
 let animTimeout = 0;
 
-// 폭탄 시스템
-let bomb = null; // { x, y, taps, maxTaps, timer, maxTimer, shake }
-let bombSpawnTimer = 0;
-let bombInterval = 10; // 첫 폭탄 10초 후
+// 폭탄 시스템 — 그리드 안에 섞여 내려옴
+let bombCell = null; // 폭탄이 있는 셀 {col, row}
+let bombTaps = 0;
+let bombMaxTaps = 5;
+let bombTimer = 0;
+let bombMaxTimer = 4;
+let bombShake = 0;
+let bombCount = 0; // 지금까지 나온 폭탄 수
 let timeLeft = 30;
 let timerInterval = null;
 
@@ -253,6 +257,7 @@ class Cell {
     this.removeAnim = 0;
     this.selected = false;
     this.shake = 0;
+    this.isBomb = false;
   }
 
   update(dt) {
@@ -374,6 +379,51 @@ class Cell {
       // 꼭지 줄기
       ctx.strokeStyle = '#2E7D32'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(x, y - faceR * 0.9); ctx.lineTo(x, y - faceR * 1.1); ctx.stroke();
+    }
+
+    // --- 폭탄이면 다르게 그리기 ---
+    if (this.isBomb) {
+      initBombState(this);
+      const danger = 1 - (this._bombTimer / this._bombMaxTimer);
+      // 빨간 글로우
+      ctx.fillStyle = `rgba(255,0,0,${0.1 + danger * 0.25})`;
+      ctx.beginPath(); ctx.arc(x, y, faceR * 1.6 + Math.sin(Date.now()*0.01)*4, 0, Math.PI*2); ctx.fill();
+      // 폭탄 외곽 (검정)
+      ctx.fillStyle = '#37474F';
+      ctx.beginPath(); ctx.arc(x, y, faceR, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#546E7A';
+      ctx.beginPath(); ctx.arc(x-faceR*0.08, y-faceR*0.08, faceR*0.88, 0, Math.PI*2); ctx.fill();
+      // 위험색 오버레이
+      ctx.fillStyle = `rgba(255,0,0,${danger * 0.35})`;
+      ctx.beginPath(); ctx.arc(x, y, faceR*0.85, 0, Math.PI*2); ctx.fill();
+      // 반사광
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.beginPath(); ctx.ellipse(x-faceR*0.2, y-faceR*0.35, faceR*0.3, faceR*0.12, -0.2, 0, Math.PI*2); ctx.fill();
+      // 심지+불꽃
+      ctx.strokeStyle = '#795548'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(x, y-faceR*0.85); ctx.quadraticCurveTo(x+6, y-faceR-6, x+2, y-faceR-12); ctx.stroke();
+      const fl = Math.sin(Date.now()*0.02);
+      ctx.fillStyle = '#FF6D00';
+      ctx.beginPath(); ctx.arc(x+2, y-faceR-14, 5+fl*2, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#FFAB00';
+      ctx.beginPath(); ctx.arc(x+2, y-faceR-15, 3+fl, 0, Math.PI*2); ctx.fill();
+      // 카운트다운
+      ctx.fillStyle = '#FFF';
+      ctx.font = `bold ${faceR*0.7}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(Math.ceil(this._bombTimer), x, y+2);
+      // 진행도 바
+      const bW = faceR*2.2, bH = 5, bX = x-bW/2, bY = y+faceR+6;
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.fillRect(bX, bY, bW, bH);
+      const prog = this._bombTaps / this._bombMaxTaps;
+      ctx.fillStyle = prog>0.7?'#4CAF50':prog>0.4?'#FFAB00':'#F44336';
+      ctx.fillRect(bX, bY, bW*prog, bH);
+      // 힌트
+      ctx.fillStyle = '#FFF'; ctx.font = 'bold 10px sans-serif';
+      ctx.fillText(`👆${this._bombTaps}/${this._bombMaxTaps}`, x, bY+bH+10);
+      ctx.restore();
+      return; // 폭탄이면 여기서 끝 (일반 표정 안 그림)
     }
 
     // --- 표정 ---
@@ -615,10 +665,18 @@ function dropColumns() {
     const empty = ROWS - grid[c].length;
     if (empty > 0) dropped = true;
 
-    // 위에서 새 셀 생성
+    // 위에서 새 셀 생성 (확률적으로 폭탄 섞임!)
     for (let i = 0; i < empty; i++) {
       const newCell = new Cell(c, -empty + i, randomType());
-      newCell.y = gridY + (-empty + i) * cellH + cellH / 2; // 화면 위에서 시작
+      newCell.y = gridY + (-empty + i) * cellH + cellH / 2;
+
+      // 폭탄 확률: 10초 이후, 그리드에 폭탄 없을 때, 5% 확률 (시간에 따라 증가)
+      const bombChance = elapsed > 10 && !hasBombInGrid() ? Math.min(0.05 + elapsed * 0.002, 0.15) : 0;
+      if (Math.random() < bombChance) {
+        newCell.isBomb = true;
+        bombCount++;
+      }
+
       grid[c].unshift(newCell);
     }
 
@@ -750,163 +808,89 @@ function showFB(x, y, text, color, size = 22) {
 }
 function triggerShake(n) { screenShake = n; }
 
-// ============ BOMB SYSTEM ============
-function spawnBomb() {
-  if (bomb) return; // 이미 폭탄 있으면 스킵
-  const bx = gridX + Math.random() * (cellW * COLS - 40) + 20;
-  const by = gridY + Math.random() * (cellH * ROWS - 40) + 20;
-  const difficulty = Math.min(Math.floor(elapsed / 30), 5); // 30초마다 난이도 증가
-  bomb = {
-    x: bx, y: by,
-    taps: 0,
-    maxTaps: 5 + difficulty * 2, // 5→7→9→11...
-    timer: 4 - difficulty * 0.3, // 4초→3.4→2.8...
-    maxTimer: 4 - difficulty * 0.3,
-    shake: 0,
-    scale: 0, // 등장 애니메이션
-  };
-  sfx('chain', 3);
-  showFB(bx, by - 30, '🧨 폭탄!', '#FF1744', 26);
+// ============ BOMB SYSTEM (그리드 내 폭탄) ============
+function hasBombInGrid() {
+  for (let c = 0; c < COLS; c++) {
+    if (!grid[c]) continue;
+    for (let r = 0; r < grid[c].length; r++) {
+      if (grid[c][r] && grid[c][r].isBomb && !grid[c][r].removing) return true;
+    }
+  }
+  return false;
 }
 
-function tapBomb() {
-  if (!bomb) return;
-  bomb.taps++;
-  bomb.shake = 8;
-  const progress = bomb.taps / bomb.maxTaps;
-  sfx('pop', Math.floor(progress * 5));
-  // 해체 파티클
-  burst(bomb.x + (Math.random()-0.5)*20, bomb.y + (Math.random()-0.5)*20, '#FF9800', 2);
+function findBombCell() {
+  for (let c = 0; c < COLS; c++) {
+    if (!grid[c]) continue;
+    for (let r = 0; r < grid[c].length; r++) {
+      if (grid[c][r] && grid[c][r].isBomb && !grid[c][r].removing) return grid[c][r];
+    }
+  }
+  return null;
+}
 
-  if (bomb.taps >= bomb.maxTaps) {
+function initBombState(cell) {
+  if (!cell._bombInit) {
+    cell._bombInit = true;
+    cell._bombTaps = 0;
+    const diff = Math.min(bombCount, 6);
+    cell._bombMaxTaps = 5 + diff * 2;
+    cell._bombTimer = Math.max(2.5, 4 - diff * 0.2);
+    cell._bombMaxTimer = cell._bombTimer;
+  }
+}
+
+function tapBombCell(cell) {
+  initBombState(cell);
+  cell._bombTaps++;
+  cell.shake = 8;
+  sfx('pop', Math.floor((cell._bombTaps / cell._bombMaxTaps) * 5));
+  burst(cell.x + (Math.random()-0.5)*20, cell.y + (Math.random()-0.5)*20, '#FF9800', 2);
+
+  if (cell._bombTaps >= cell._bombMaxTaps) {
     // 해체 성공!
-    const pts = 50 + Math.floor(bomb.timer * 20); // 남은 시간 보너스
-    score += pts;
-    combo += 5;
+    const pts = 50 + Math.floor(cell._bombTimer * 20);
+    score += pts; combo += 5;
     if (combo > maxCombo) maxCombo = combo;
-    showFB(bomb.x, bomb.y - 30, `💪 해체! +${pts}`, '#4CAF50', 28);
+    showFB(cell.x, cell.y - 30, `💪 해체! +${pts}`, '#4CAF50', 28);
     sfx('bigpop');
-    burst(bomb.x, bomb.y, '#4CAF50', 15);
-    burst(bomb.x, bomb.y, '#FFD700', 10);
+    burst(cell.x, cell.y, '#4CAF50', 15);
+    burst(cell.x, cell.y, '#FFD700', 10);
     triggerShake(8);
-    bomb = null;
+    cell.isBomb = false;
+    cell.removing = true;
+    // 낙하
+    setTimeout(() => { dropColumns(); setTimeout(() => { animating = false; }, 350); }, 250);
     updateHUD();
   }
 }
 
-function updateBomb(dt) {
-  if (!bomb) return;
-  bomb.scale = Math.min(1, bomb.scale + dt * 5);
-  bomb.timer -= dt;
-  bomb.shake *= 0.9;
-
-  // 남은 시간 적을수록 심장박동
-  if (bomb.timer < 2) {
-    bomb.shake = Math.sin(Date.now() * 0.03) * (3 - bomb.timer) * 2;
-  }
-
-  if (bomb.timer <= 0) {
-    // 폭발! 게임 오버!
-    sfx('miss');
-    burst(bomb.x, bomb.y, '#FF1744', 20);
-    burst(bomb.x, bomb.y, '#FF9100', 15);
-    triggerShake(15);
-    showFB(bomb.x, bomb.y - 30, '💥 펑!', '#FF1744', 36);
-    bomb = null;
-    setTimeout(() => endGame(), 500);
+function updateBombs(dt) {
+  for (let c = 0; c < COLS; c++) {
+    if (!grid[c]) continue;
+    for (let r = 0; r < grid[c].length; r++) {
+      const cell = grid[c][r];
+      if (!cell || !cell.isBomb || cell.removing) continue;
+      initBombState(cell);
+      cell._bombTimer -= dt;
+      if (cell._bombTimer < 2) {
+        cell.shake = Math.sin(Date.now() * 0.03) * (3 - cell._bombTimer) * 2;
+      }
+      if (cell._bombTimer <= 0) {
+        // 폭발! 게임 오버!
+        sfx('miss');
+        burst(cell.x, cell.y, '#FF1744', 20);
+        burst(cell.x, cell.y, '#FF9100', 15);
+        triggerShake(15);
+        showFB(cell.x, cell.y - 30, '💥 펑!', '#FF1744', 36);
+        cell.isBomb = false;
+        setTimeout(() => endGame(), 500);
+      }
+    }
   }
 }
 
-function drawBomb() {
-  if (!bomb) return;
-  ctx.save();
-  const b = bomb;
-  const sc = b.scale;
-  const sx = (Math.random()-0.5) * b.shake;
-  const bx = b.x + sx, by = b.y;
-  const r = 38 * sc;
-  const danger = 1 - (b.timer / b.maxTimer);
-
-  // 큰 빨간 경고 원 (펄스)
-  const pulseR = r * 3 + Math.sin(Date.now()*0.008) * 15;
-  ctx.fillStyle = `rgba(255,0,0,${0.08 + danger * 0.15})`;
-  ctx.beginPath(); ctx.arc(bx, by, pulseR, 0, Math.PI*2); ctx.fill();
-  // 두 번째 링
-  ctx.strokeStyle = `rgba(255,50,50,${0.3 + danger * 0.4})`;
-  ctx.lineWidth = 3;
-  ctx.setLineDash([8, 6]);
-  ctx.beginPath(); ctx.arc(bx, by, r * 2.2 + Math.sin(Date.now()*0.012)*8, 0, Math.PI*2); ctx.stroke();
-  ctx.setLineDash([]);
-
-  // ⚠️ 경고 텍스트 (위에 떠다님)
-  ctx.fillStyle = '#FF1744';
-  ctx.font = 'bold 14px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.globalAlpha = 0.6 + Math.sin(Date.now()*0.006)*0.4;
-  ctx.fillText('⚠️ 연타하세요!', bx, by - r - 25);
-  ctx.globalAlpha = 1;
-
-  // 폭탄 그림자
-  ctx.fillStyle = 'rgba(0,0,0,0.2)';
-  ctx.beginPath(); ctx.ellipse(bx+2, by + r*0.4, r*0.8, r*0.2, 0, 0, Math.PI*2); ctx.fill();
-
-  // 폭탄 몸체 (크고 명확하게)
-  ctx.fillStyle = '#37474F';
-  ctx.beginPath(); ctx.arc(bx, by, r, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#546E7A';
-  ctx.beginPath(); ctx.arc(bx - r*0.08, by - r*0.08, r*0.88, 0, Math.PI*2); ctx.fill();
-
-  // 위험 색 오버레이 (시간 적을수록 빨갛게)
-  ctx.fillStyle = `rgba(255,0,0,${danger * 0.35})`;
-  ctx.beginPath(); ctx.arc(bx, by, r*0.85, 0, Math.PI*2); ctx.fill();
-
-  // 반사광
-  ctx.fillStyle = 'rgba(255,255,255,0.3)';
-  ctx.beginPath(); ctx.ellipse(bx - r*0.2, by - r*0.35, r*0.35, r*0.15, -0.2, 0, Math.PI*2); ctx.fill();
-
-  // 심지 (굵게)
-  ctx.strokeStyle = '#795548'; ctx.lineWidth = 4; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(bx, by - r*0.9); ctx.quadraticCurveTo(bx + 8, by - r - 10, bx + 3, by - r - 18); ctx.stroke();
-
-  // 불꽃 (항상 보임, 크게)
-  const flicker = Math.sin(Date.now()*0.02);
-  ctx.fillStyle = '#FF6D00';
-  ctx.beginPath(); ctx.arc(bx + 3, by - r - 20, 7 + flicker*3, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#FFAB00';
-  ctx.beginPath(); ctx.arc(bx + 3, by - r - 22, 4 + flicker*2, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#FFF9C4';
-  ctx.beginPath(); ctx.arc(bx + 3, by - r - 23, 2, 0, Math.PI*2); ctx.fill();
-
-  // 카운트다운 숫자 (크고 굵게)
-  ctx.fillStyle = '#FFF';
-  ctx.font = `bold ${r * 0.9}px sans-serif`;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 4;
-  ctx.fillText(Math.ceil(b.timer), bx, by + 3);
-  ctx.shadowBlur = 0;
-
-  // 진행도 바 (크고 명확하게)
-  const barW = r * 3, barH = 10;
-  const barX = bx - barW/2, barY = by + r + 14;
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.beginPath();
-  ctx.roundRect?.(barX, barY, barW, barH, 5) || ctx.rect(barX, barY, barW, barH);
-  ctx.fill();
-  const prog = b.taps / b.maxTaps;
-  ctx.fillStyle = prog > 0.7 ? '#4CAF50' : prog > 0.4 ? '#FFAB00' : '#FF1744';
-  ctx.beginPath();
-  ctx.roundRect?.(barX, barY, barW * prog, barH, 5) || ctx.rect(barX, barY, barW * prog, barH);
-  ctx.fill();
-
-  // 연타 힌트 (크게)
-  ctx.fillStyle = '#FFF';
-  ctx.font = 'bold 13px sans-serif';
-  ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 3;
-  ctx.fillText(`👆 ${b.taps} / ${b.maxTaps}`, bx, barY + barH + 16);
-  ctx.shadowBlur = 0;
-
-  ctx.restore();
-}
+// drawBomb 제거됨 — Cell.draw에서 isBomb 처리
 
 // ============ INPUT ============
 let swipePath = []; // 스와이프 경로 [{c,r}, ...]
@@ -957,8 +941,9 @@ function onDown(e) {
   const { x, y } = pos(e);
 
   // 폭탄 터치 체크 (최우선!)
-  if (bomb && Math.sqrt((x - bomb.x)**2 + (y - bomb.y)**2) < 50) {
-    tapBomb();
+  const cell0 = findCellAt(x, y);
+  if (cell0 && grid[cell0.c] && grid[cell0.c][cell0.r] && grid[cell0.c][cell0.r].isBomb) {
+    tapBombCell(grid[cell0.c][cell0.r]);
     swiping = false;
     return;
   }
@@ -1018,11 +1003,16 @@ function onUp(e) {
       setTimeout(() => { animating = false; }, 400);
     }, 250);
   } else if (swipePath.length <= 2) {
-    // 2개 이하 → 폭탄 터치 체크!
-    const { x, y } = pos(e);
-    if (bomb && Math.sqrt((x - bomb.x)**2 + (y - bomb.y)**2) < 50) {
-      tapBomb();
-    } else if (swipePath.length === 2) {
+    // 2개 이하 → 폭탄 or 미스
+    if (swipePath.length >= 1) {
+      const { c, r } = swipePath[0];
+      if (grid[c] && grid[c][r] && grid[c][r].isBomb) {
+        tapBombCell(grid[c][r]);
+        clearSwipeHighlight();
+        return;
+      }
+    }
+    if (swipePath.length === 2) {
       // 2개 스와이프 → 부족! 흔들기만
       swipePath.forEach(({ c, r }) => { if (grid[c] && grid[c][r]) grid[c][r].shake = 5; });
       sfx('miss');
@@ -1198,17 +1188,10 @@ function loop(ts) {
   drawParticles();
   if (swiping) drawSwipeLine();
 
-  // 폭탄
+  // 폭탄 업데이트
   if (gameRunning) {
-    bombSpawnTimer += dt;
-    if (!bomb && bombSpawnTimer >= bombInterval) {
-      bombSpawnTimer = 0;
-      bombInterval = Math.max(5, 10 - elapsed * 0.15); // 점점 자주 등장
-      spawnBomb();
-    }
-    updateBomb(dt);
+    updateBombs(dt);
   }
-  drawBomb();
 
   if (gameRunning) updateHUD();
 
@@ -1234,7 +1217,7 @@ function startCountdown() {
   particles = []; score = 0; combo = 0; maxCombo = 0; chainLevel = 0;
   pullCount = 0; elapsed = 0; feverMode = false; gameOver = false;
   animating = false; timeLeft = 30; isNewRecord = false; currentChain = 0;
-  bomb = null; bombSpawnTimer = 0; bombInterval = 10; animTimeout = 0;
+  bombCount = 0; animTimeout = 0;
   document.getElementById('hud-score').style.color = '';
   document.getElementById('fever-overlay').classList.remove('active');
   document.getElementById('fever-overlay').style.boxShadow = '';
