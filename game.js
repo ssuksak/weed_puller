@@ -689,51 +689,52 @@ function removeGroup(group, chain) {
   });
 }
 
-// 낙하 처리 (안전하게)
+// 낙하 처리 (심플하고 확실하게)
 function dropColumns() {
   let dropped = false;
   let bombPlaced = false;
 
   for (let c = 0; c < COLS; c++) {
-    if (!grid[c]) grid[c] = [];
+    if (!grid[c]) grid[c] = new Array(ROWS).fill(null);
 
-    // null 및 removing 셀 제거
-    grid[c] = grid[c].filter(cell => cell && !cell.removing);
+    // 아래부터 채움: null이 아닌 셀만 모아서 아래로 몰기
+    const alive = [];
+    for (let r = 0; r < ROWS; r++) {
+      if (grid[c][r] && !grid[c][r].removing) {
+        alive.push(grid[c][r]);
+      }
+    }
 
-    // 빈 칸 수 (항상 ROWS개 유지)
-    const empty = ROWS - grid[c].length;
-    if (empty <= 0) continue;
-    dropped = true;
+    const empty = ROWS - alive.length;
+    if (empty > 0) dropped = true;
 
-    // 위에서 새 셀 생성
+    // 새 셀 생성 (위쪽 빈 칸)
+    const newCells = [];
     for (let i = 0; i < empty; i++) {
-      const newCell = new Cell(c, 0, randomType());
-      newCell.y = gridY + (-(empty - i)) * cellH + cellH / 2; // 화면 위에서 시작
+      const newCell = new Cell(c, i, randomType());
+      newCell.y = gridY + (i - empty) * cellH + cellH / 2; // 화면 위에서 시작
       newCell.scale = 0;
 
-      // 폭탄: N번째 수확마다 1개 확정 (첫 빈칸에만)
-      if (!bombPlaced && swipeCount >= nextBombAt && !hasBombInGrid() && i === 0 && c === Math.floor(COLS / 2)) {
+      // 폭탄
+      if (!bombPlaced && swipeCount >= nextBombAt && !hasBombInGrid() && i === 0) {
         newCell.isBomb = true;
         bombCount++;
         nextBombAt = swipeCount + Math.max(2, 4 - Math.floor(bombCount * 0.3));
         bombPlaced = true;
       }
 
-      grid[c].unshift(newCell);
+      newCells.push(newCell);
     }
 
-    // row 인덱스 + 목표 위치 재설정 (전체 열)
-    for (let r = 0; r < grid[c].length; r++) {
+    // 그리드 재구성: 새 셀(위) + 기존 살아있는 셀(아래)
+    grid[c] = [...newCells, ...alive];
+
+    // row/위치 재설정
+    for (let r = 0; r < ROWS; r++) {
       grid[c][r].col = c;
       grid[c][r].row = r;
-      grid[c][r].targetX = gridX + c * cellW + cellW / 2;
       grid[c][r].targetY = gridY + r * cellH + cellH / 2;
       grid[c][r].x = gridX + c * cellW + cellW / 2;
-    }
-
-    // 안전장치: ROWS보다 많으면 잘라냄
-    if (grid[c].length > ROWS) {
-      grid[c] = grid[c].slice(0, ROWS);
     }
   }
   if (dropped) sfx('drop');
@@ -1252,30 +1253,15 @@ function loop(ts) {
 
   // 그리드 무결성 체크 (매 프레임)
   if (gameRunning) {
+    let needsDrop = false;
     for (let c = 0; c < COLS; c++) {
-      if (!grid[c]) grid[c] = [];
-      // null/removing 제거
-      grid[c] = grid[c].filter(cell => cell && !cell.removing);
-      // 빈 칸 채우기 (위에서 떨어짐)
-      let filled = false;
-      while (grid[c].length < ROWS) {
-        const newCell = new Cell(c, 0, randomType());
-        newCell.y = gridY - (ROWS - grid[c].length) * cellH;
-        newCell.x = gridX + c * cellW + cellW / 2;
-        newCell.scale = 0;
-        grid[c].unshift(newCell);
-        filled = true;
+      if (!grid[c] || grid[c].length !== ROWS) { needsDrop = true; break; }
+      for (let r = 0; r < ROWS; r++) {
+        if (!grid[c][r]) { needsDrop = true; break; }
       }
-      // 초과분 제거
-      if (grid[c].length > ROWS) grid[c] = grid[c].slice(grid[c].length - ROWS);
-      // 위치 재설정
-      for (let r = 0; r < grid[c].length; r++) {
-        grid[c][r].col = c;
-        grid[c][r].row = r;
-        grid[c][r].targetY = gridY + r * cellH + cellH / 2;
-        grid[c][r].x = gridX + c * cellW + cellW / 2;
-      }
+      if (needsDrop) break;
     }
+    if (needsDrop) dropColumns();
     updateBombs(dt);
   }
 
