@@ -689,39 +689,53 @@ function removeGroup(group, chain) {
   });
 }
 
-// 낙하 처리
+// 낙하 처리 (안전하게)
 function dropColumns() {
   let dropped = false;
+  let bombPlaced = false;
+
   for (let c = 0; c < COLS; c++) {
-    if (!grid[c]) { grid[c] = []; continue; }
+    if (!grid[c]) grid[c] = [];
 
-    // 실제 제거 (removeAnim이 진행된 것들)
-    grid[c] = grid[c].filter(cell => !cell.removing);
+    // removing 셀 제거
+    const before = grid[c].length;
+    grid[c] = grid[c].filter(cell => cell && !cell.removing);
+    const removed = before - grid[c].length;
 
-    // 빈 칸 수
+    // 빈 칸 수 (항상 ROWS개 유지)
     const empty = ROWS - grid[c].length;
-    if (empty > 0) dropped = true;
+    if (empty <= 0) continue;
+    dropped = true;
 
-    // 위에서 새 셀 생성 (확률적으로 폭탄 섞임!)
+    // 위에서 새 셀 생성
     for (let i = 0; i < empty; i++) {
-      const newCell = new Cell(c, -empty + i, randomType());
-      newCell.y = gridY + (-empty + i) * cellH + cellH / 2;
+      const newCell = new Cell(c, 0, randomType());
+      newCell.y = gridY + (-(empty - i)) * cellH + cellH / 2; // 화면 위에서 시작
+      newCell.scale = 0;
 
-      // 폭탄: N번째 수확마다 1개 확정 등장
-      if (swipeCount >= nextBombAt && !hasBombInGrid() && !newCell.isBomb && i === 0) {
+      // 폭탄: N번째 수확마다 1개 확정 (첫 빈칸에만)
+      if (!bombPlaced && swipeCount >= nextBombAt && !hasBombInGrid() && i === 0 && c === Math.floor(COLS / 2)) {
         newCell.isBomb = true;
         bombCount++;
-        nextBombAt = swipeCount + Math.max(2, 4 - Math.floor(bombCount * 0.3)); // 점점 자주
+        nextBombAt = swipeCount + Math.max(2, 4 - Math.floor(bombCount * 0.3));
+        bombPlaced = true;
       }
 
       grid[c].unshift(newCell);
     }
 
-    // row 인덱스 + 목표 위치 재설정
+    // row 인덱스 + 목표 위치 재설정 (전체 열)
     for (let r = 0; r < grid[c].length; r++) {
       grid[c][r].col = c;
       grid[c][r].row = r;
+      grid[c][r].targetX = gridX + c * cellW + cellW / 2;
       grid[c][r].targetY = gridY + r * cellH + cellH / 2;
+      grid[c][r].x = gridX + c * cellW + cellW / 2;
+    }
+
+    // 안전장치: ROWS보다 많으면 잘라냄
+    if (grid[c].length > ROWS) {
+      grid[c] = grid[c].slice(0, ROWS);
     }
   }
   if (dropped) sfx('drop');
@@ -1216,7 +1230,7 @@ function loop(ts) {
   // animating 안전장치 (3초 타임아웃)
   if (animating) {
     animTimeout += dt;
-    if (animTimeout > 3) { animating = false; animTimeout = 0; }
+    if (animTimeout > 1.5) { animating = false; animTimeout = 0; }
   } else { animTimeout = 0; }
 
   if (feverMode && gameRunning) {
@@ -1238,8 +1252,25 @@ function loop(ts) {
   drawParticles();
   if (swiping) drawSwipeLine();
 
-  // 폭탄 업데이트
+  // 그리드 무결성 체크 (매 프레임)
   if (gameRunning) {
+    for (let c = 0; c < COLS; c++) {
+      if (!grid[c]) grid[c] = [];
+      // 빈 칸 있으면 채우기
+      while (grid[c].length < ROWS) {
+        const newCell = new Cell(c, 0, randomType());
+        newCell.y = gridY - cellH;
+        newCell.scale = 0;
+        grid[c].unshift(newCell);
+      }
+      // 위치 재설정
+      for (let r = 0; r < grid[c].length; r++) {
+        grid[c][r].col = c;
+        grid[c][r].row = r;
+        grid[c][r].targetY = gridY + r * cellH + cellH / 2;
+        if (!grid[c][r].x) grid[c][r].x = gridX + c * cellW + cellW / 2;
+      }
+    }
     updateBombs(dt);
   }
 
