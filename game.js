@@ -678,15 +678,50 @@ function removeGroup(group, chain) {
   const color = chain >= 3 ? '#FF1744' : chain >= 2 ? '#FF9100' : size >= 6 ? '#FFD700' : '#4CAF50';
   showFB(centerX - 30, centerY, `+${pts}${sizeText}${chainText}`, color, fontSize);
 
-  // 파티클 + 즉시 제거 (removing 대신 바로 null)
+  // 파티클 + 즉시 제거 — 셀 객체 참조로 찾아서 제거
   group.forEach(({ c, r }) => {
-    const cell = grid[c] && grid[c][r];
+    // c,r 인덱스가 아니라 해당 열에서 셀 객체를 찾아서 제거
+    if (!grid[c]) return;
+    const cell = grid[c][r];
     if (cell) {
       burst(cell.x, cell.y, cell.type ? cell.type.color : '#888', 4 + chain * 2);
       burst(cell.x, cell.y, '#A0522D', 2);
-      grid[c][r] = null; // 즉시 제거
     }
+    // 해당 셀을 marked로 표시 (나중에 한번에 필터)
+    if (grid[c][r]) grid[c][r]._dead = true;
   });
+
+  // 모든 열에서 dead 셀 제거 + 즉시 채움
+  for (let c = 0; c < COLS; c++) {
+    if (!grid[c]) continue;
+    const hadDead = grid[c].some(cell => cell && cell._dead);
+    if (hadDead) {
+      grid[c] = grid[c].filter(cell => cell && !cell._dead);
+      const empty = ROWS - grid[c].length;
+      const newCells = [];
+      for (let i = 0; i < empty; i++) {
+        const nc = new Cell(c, i, randomType());
+        nc.y = gridY + (i - empty) * cellH + cellH / 2;
+        nc.x = gridX + c * cellW + cellW / 2;
+        nc.scale = 0;
+        // 폭탄 스폰
+        if (swipeCount >= nextBombAt && !hasBombInGrid() && i === 0 && !newCells.some(n => n.isBomb)) {
+          nc.isBomb = true;
+          bombCount++;
+          nextBombAt = swipeCount + Math.max(2, 4 - Math.floor(bombCount * 0.3));
+        }
+        newCells.push(nc);
+      }
+      grid[c] = [...newCells, ...grid[c]];
+      // row 재설정
+      for (let r2 = 0; r2 < grid[c].length; r2++) {
+        grid[c][r2].col = c;
+        grid[c][r2].row = r2;
+        grid[c][r2].targetY = gridY + r2 * cellH + cellH / 2;
+        grid[c][r2].x = gridX + c * cellW + cellW / 2;
+      }
+    }
+  }
 }
 
 // 낙하 처리 (심플하고 확실하게)
@@ -904,9 +939,27 @@ function tapBombCell(cell) {
     burst(cell.x, cell.y, '#4CAF50', 15);
     burst(cell.x, cell.y, '#FFD700', 10);
     triggerShake(8);
-    // 셀을 null로 제거 + 즉시 낙하
-    if (grid[cell.col]) grid[cell.col][cell.row] = null;
-    dropColumns();
+    // 셀을 dead로 표시 + 즉시 낙하
+    cell._dead = true;
+    const bc = cell.col;
+    if (grid[bc]) {
+      grid[bc] = grid[bc].filter(c2 => c2 && !c2._dead);
+      const empty = ROWS - grid[bc].length;
+      const newCells = [];
+      for (let i = 0; i < empty; i++) {
+        const nc = new Cell(bc, i, randomType());
+        nc.y = gridY + (i - empty) * cellH + cellH / 2;
+        nc.x = gridX + bc * cellW + cellW / 2;
+        nc.scale = 0;
+        newCells.push(nc);
+      }
+      grid[bc] = [...newCells, ...grid[bc]];
+      for (let r = 0; r < grid[bc].length; r++) {
+        grid[bc][r].col = bc; grid[bc][r].row = r;
+        grid[bc][r].targetY = gridY + r * cellH + cellH / 2;
+        grid[bc][r].x = gridX + bc * cellW + cellW / 2;
+      }
+    }
     updateHUD();
   }
 }
@@ -1041,10 +1094,8 @@ function onUp(e) {
     // 스와이프로 3개 이상 → 한꺼번에 터짐!
     swipeCount++;
     currentChain = 0;
-    removeGroup(swipePath, 0);
+    removeGroup(swipePath, 0); // 내부에서 낙하까지 처리
     clearSwipeHighlight();
-    // 즉시 낙하 + 셔플 체크
-    dropColumns();
     setTimeout(() => { if (!hasAnyMatch()) shuffleGrid(); }, 300);
   } else if (swipePath.length <= 2) {
     // 2개 이하 → 폭탄 or 미스
