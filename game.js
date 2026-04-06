@@ -553,8 +553,10 @@ function findGroup(col, row) {
 
 // 그룹 제거 + 점수
 function removeGroup(group, chain) {
+  // 유효한 셀만 필터
+  group = group.filter(({ c, r }) => grid[c] && grid[c][r] && !grid[c][r].removing);
   const size = group.length;
-  if (size < 2) return;
+  if (size < 1) return;
 
   // 점수: 크기 제곱 * 연쇄 배수
   const chainMult = 1 + chain * 0.5;
@@ -581,8 +583,8 @@ function removeGroup(group, chain) {
   triggerShake(2 + size + chain * 3);
 
   // 텍스트
-  const centerX = group.reduce((s, g) => s + grid[g.c][g.r].x, 0) / size;
-  const centerY = group.reduce((s, g) => s + grid[g.c][g.r].y, 0) / size;
+  const centerX = group.reduce((s, g) => s + (grid[g.c] && grid[g.c][g.r] ? grid[g.c][g.r].x : canvas.width/2), 0) / size;
+  const centerY = group.reduce((s, g) => s + (grid[g.c] && grid[g.c][g.r] ? grid[g.c][g.r].y : canvas.height/2), 0) / size;
   const chainText = chain > 0 ? ` 💥${chain + 1}연쇄!` : '';
   const sizeText = size >= 6 ? ' 대박!' : size >= 4 ? ' 좋아!' : '';
   const fontSize = Math.min(18 + size * 2 + chain * 3, 36);
@@ -934,7 +936,13 @@ function isAdjacent(a, b) {
 }
 
 function clearSwipeHighlight() {
-  swipePath.forEach(({ c, r }) => { if (grid[c] && grid[c][r]) grid[c][r].selected = false; });
+  // 모든 셀 selected 해제
+  for (let c = 0; c < COLS; c++) {
+    if (!grid[c]) continue;
+    for (let r = 0; r < grid[c].length; r++) {
+      if (grid[c][r]) grid[c][r].selected = false;
+    }
+  }
   swipePath = [];
   swipeTypeId = -1;
 }
@@ -942,6 +950,10 @@ function clearSwipeHighlight() {
 function onDown(e) {
   if (!gameRunning) return;
   e.preventDefault?.();
+
+  // 항상 이전 하이라이트 초기화
+  clearSwipeHighlight();
+
   const { x, y } = pos(e);
 
   // 폭탄 터치 체크 (최우선!)
