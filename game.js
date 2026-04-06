@@ -643,13 +643,12 @@ function removeGroup(group, chain) {
   combo += size;
   if (combo > maxCombo) maxCombo = combo;
 
-  // 콤보 보상: 시간 추가!
+  // 콤보 보상: 시간 추가 (큰 콤보만!)
   let bonusTime = 0;
-  if (size >= 7) { bonusTime = 3; }
-  else if (size >= 5) { bonusTime = 2; }
-  else if (size >= 3) { bonusTime = 1; }
+  if (size >= 8) { bonusTime = 2; }
+  else if (size >= 6) { bonusTime = 1; }
   if (bonusTime > 0) {
-    timeLeft += bonusTime;
+    timeLeft = Math.min(timeLeft + bonusTime, 45); // 최대 45초 캡
     showFB(canvas.width - 80, 30, `⏱+${bonusTime}s`, '#4FC3F7', 20);
   }
 
