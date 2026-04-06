@@ -545,21 +545,20 @@ function initGrid() {
   for (let c = 0; c < COLS; c++) {
     grid[c] = [];
     for (let r = 0; r < ROWS; r++) {
-      // 인접한 같은 타입이 3개 이상 안 되도록 배치
-      let typeId = randomType();
-      let attempts = 0;
-      while (attempts < 10) {
-        // 왼쪽 2개, 위쪽 2개 체크
-        const leftMatch = c >= 2 && grid[c-1][r] && grid[c-2][r] &&
-          grid[c-1][r].typeId === typeId && grid[c-2][r].typeId === typeId;
-        const topMatch = r >= 2 && grid[c][r-1] && grid[c][r-2] &&
-          grid[c][r-1].typeId === typeId && grid[c][r-2].typeId === typeId;
-        if (!leftMatch && !topMatch) break;
-        typeId = randomType();
-        attempts++;
-      }
-      grid[c][r] = new Cell(c, r, typeId);
+      grid[c][r] = new Cell(c, r, randomType());
     }
+  }
+  // 3개+ 매치가 최소 3개는 있도록 보장
+  let safety = 0;
+  while (!hasAnyMatch() && safety < 50) {
+    // 랜덤으로 일부 셀 타입 변경
+    for (let i = 0; i < 8; i++) {
+      const rc = Math.floor(Math.random() * COLS);
+      const rr = Math.floor(Math.random() * ROWS);
+      if (grid[rc][rr]) grid[rc][rr].typeId = grid[rc][rr > 0 ? rr-1 : rr+1]?.typeId ?? randomType();
+      if (grid[rc][rr]) grid[rc][rr].type = TYPES[grid[rc][rr].typeId];
+    }
+    safety++;
   }
 }
 
@@ -568,10 +567,16 @@ function randomType() {
 }
 
 function hasAnyMatch() {
+  const visited = new Set();
   for (let c = 0; c < COLS; c++) {
     if (!grid[c]) continue;
     for (let r = 0; r < grid[c].length; r++) {
-      if (grid[c][r] && !grid[c][r].removing && findGroup(c, r).length >= 2) return true;
+      const key = `${c},${r}`;
+      if (visited.has(key)) continue;
+      if (!grid[c][r] || grid[c][r].removing || grid[c][r].isBomb) continue;
+      const group = findGroup(c, r);
+      group.forEach(g => visited.add(`${g.c},${g.r}`));
+      if (group.length >= 3) return true;
     }
   }
   return false;
@@ -755,26 +760,34 @@ function checkChains() {
 
 function shuffleGrid() {
   showFB(canvas.width / 2 - 40, canvas.height * 0.4, '🔀 섞는 중!', '#FFF', 24);
-  const types = [];
-  for (let c = 0; c < COLS; c++) {
-    for (let r = 0; r < grid[c].length; r++) {
-      types.push(grid[c][r].typeId);
+  sfx('drop');
+
+  let attempts = 0;
+  do {
+    const types = [];
+    for (let c = 0; c < COLS; c++) {
+      for (let r = 0; r < grid[c].length; r++) {
+        if (!grid[c][r].isBomb) types.push(grid[c][r].typeId);
+      }
     }
-  }
-  // Fisher-Yates
-  for (let i = types.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [types[i], types[j]] = [types[j], types[i]];
-  }
-  let idx = 0;
-  for (let c = 0; c < COLS; c++) {
-    for (let r = 0; r < grid[c].length; r++) {
-      grid[c][r].typeId = types[idx];
-      grid[c][r].type = TYPES[types[idx]];
-      grid[c][r].shake = 5;
-      idx++;
+    // Fisher-Yates
+    for (let i = types.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [types[i], types[j]] = [types[j], types[i]];
     }
-  }
+    let idx = 0;
+    for (let c = 0; c < COLS; c++) {
+      for (let r = 0; r < grid[c].length; r++) {
+        if (!grid[c][r].isBomb) {
+          grid[c][r].typeId = types[idx];
+          grid[c][r].type = TYPES[types[idx]];
+          grid[c][r].shake = 5;
+          idx++;
+        }
+      }
+    }
+    attempts++;
+  } while (!hasAnyMatch() && attempts < 20);
 }
 
 // ============ PARTICLES ============
@@ -999,8 +1012,11 @@ function onUp(e) {
     clearSwipeHighlight();
     setTimeout(() => {
       dropColumns();
-      // 자동 연쇄 없음! 떨어지기만 하고 끝
-      setTimeout(() => { animating = false; }, 400);
+      setTimeout(() => {
+        animating = false;
+        // 매치 가능한 게 없으면 셔플
+        if (!hasAnyMatch()) shuffleGrid();
+      }, 400);
     }, 250);
   } else if (swipePath.length <= 2) {
     // 2개 이하 → 폭탄 or 미스
