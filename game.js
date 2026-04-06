@@ -56,7 +56,7 @@ function startBGM() {
 }
 function scheduleBGM() {
   if (!bgmPlaying || !audioCtx) return;
-  const mel = feverMode ? BGM_FEVER : BGM_MEL;
+  const mel = feverMode ? BGM_TENSE : BGM_CALM;
   // 시간에 따라 점진적으로 빨라짐
   const gameProgress = 1 - (timeLeft / 30); // 0→1
   const baseTempo = 0.18 - gameProgress * 0.06; // 0.18→0.12
