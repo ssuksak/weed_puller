@@ -43,9 +43,9 @@ function startBGM() {
 function scheduleBGM() {
   if (!bgmPlaying || !audioCtx) return;
   const mel = feverMode ? BGM_FEVER : BGM_MEL;
-  // 남은 시간 적을수록 빨라짐!
-  const urgency = timeLeft <= 5 ? 0.07 : timeLeft <= 10 ? 0.09 : timeLeft <= 15 ? 0.12 : 0.15;
-  const tempo = feverMode ? Math.min(urgency, 0.08) : urgency;
+  // 남은 시간 적을수록 빨라짐 (10초부터)
+  const urgency = timeLeft <= 3 ? 0.08 : timeLeft <= 7 ? 0.10 : 0.15;
+  const tempo = feverMode ? Math.min(urgency, 0.09) : urgency;
   const mk = (type, freq, time, dur, vol) => {
     const o = audioCtx.createOscillator(), g = audioCtx.createGain();
     o.connect(g); g.connect(bgmGain); o.type = type;
@@ -55,10 +55,10 @@ function scheduleBGM() {
     o.start(time); o.stop(time + dur);
   };
   while (bgmNextTime < audioCtx.currentTime + 0.5) {
-    const useMel = timeLeft <= 10 ? BGM_FEVER : mel;
+    const useMel = timeLeft <= 7 ? BGM_FEVER : mel;
     const [f, d] = useMel[bgmIdx % useMel.length];
-    const waveType = timeLeft <= 5 ? 'square' : feverMode ? 'square' : 'triangle';
-    mk(waveType, f, bgmNextTime, d * tempo * 0.9, timeLeft <= 10 ? 0.35 : 0.3);
+    const waveType = timeLeft <= 3 ? 'square' : feverMode ? 'square' : 'triangle';
+    mk(waveType, f, bgmNextTime, d * tempo * 0.9, 0.3);
     bgmNextTime += d * tempo; bgmIdx++;
   }
   const bt = tempo * 4;
@@ -68,7 +68,7 @@ function scheduleBGM() {
     mk('sine', f * 0.5, bgmBassNext, d * bt * 0.3, 0.15);
     bgmBassNext += d * bt; bgmBassIdx++;
   }
-  const dt2 = timeLeft <= 10 ? tempo * 1.2 : tempo * 2; // 10초 이하면 드럼 빽빽하게
+  const dt2 = timeLeft <= 7 ? tempo * 1.3 : tempo * 2;
   while (bgmDrumNext < audioCtx.currentTime + 0.5) {
     const beat = bgmDrumBeat % 4;
     if (beat === 0 || beat === 2) mk('sine', 150, bgmDrumNext, 0.1, 0.4);
@@ -1168,8 +1168,8 @@ function updateHUD() {
   document.getElementById('hud-score').textContent = score;
   document.getElementById('hud-timer').textContent = `${timeLeft}s`;
   const timerEl = document.getElementById('hud-timer');
-  if (timeLeft <= 5) { timerEl.style.color = '#FF1744'; timerEl.style.fontSize = '22px'; }
-  else if (timeLeft <= 10) { timerEl.style.color = '#F04452'; timerEl.style.fontSize = '18px'; }
+  if (timeLeft <= 3) { timerEl.style.color = '#FF1744'; timerEl.style.fontSize = '22px'; }
+  else if (timeLeft <= 7) { timerEl.style.color = '#F04452'; timerEl.style.fontSize = '18px'; }
   else { timerEl.style.color = ''; timerEl.style.fontSize = ''; }
   if (score > highScore) document.getElementById('hud-score').style.color = '#FFD700';
   const le = document.getElementById('hud-level');
