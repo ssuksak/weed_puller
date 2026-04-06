@@ -194,13 +194,9 @@ let animating = false;
 let animTimeout = 0;
 
 // 폭탄 시스템 — 그리드 안에 섞여 내려옴
-let bombCell = null; // 폭탄이 있는 셀 {col, row}
-let bombTaps = 0;
-let bombMaxTaps = 5;
-let bombTimer = 0;
-let bombMaxTimer = 4;
-let bombShake = 0;
 let bombCount = 0; // 지금까지 나온 폭탄 수
+let swipeCount = 0; // 드래그 수확 횟수 (3번마다 폭탄)
+let nextBombAt = 3; // 다음 폭탄이 나올 수확 횟수
 let timeLeft = 30;
 let timerInterval = null;
 
@@ -236,11 +232,11 @@ resize();
 
 // ============ WEED TYPES ============
 const TYPES = [
-  { id: 0, name: '토마토', bg: '#EF5350', face: '#FFCDD2', accent: '#C62828', expr: 'happy', headDeco: 'tomato' },
-  { id: 1, name: '당근', bg: '#FF8A65', face: '#FFE0B2', accent: '#E64A19', expr: 'laugh', headDeco: 'carrot' },
-  { id: 2, name: '양배추', bg: '#81C784', face: '#C8E6C9', accent: '#388E3C', expr: 'wink', headDeco: 'cabbage' },
-  { id: 3, name: '옥수수', bg: '#FFD54F', face: '#FFF9C4', accent: '#F9A825', expr: 'surprised', headDeco: 'corn' },
-  { id: 4, name: '가지', bg: '#AB47BC', face: '#E1BEE7', accent: '#7B1FA2', expr: 'angry', headDeco: 'eggplant' },
+  { id: 0, name: '토마토', bg: '#F44336', face: '#FFCDD2', accent: '#B71C1C', expr: 'happy', headDeco: 'tomato' },
+  { id: 1, name: '당근', bg: '#FF7043', face: '#FFE0B2', accent: '#D84315', expr: 'laugh', headDeco: 'carrot' },
+  { id: 2, name: '양배추', bg: '#66BB6A', face: '#C8E6C9', accent: '#2E7D32', expr: 'wink', headDeco: 'cabbage' },
+  { id: 3, name: '옥수수', bg: '#FFCA28', face: '#FFF9C4', accent: '#F57F17', expr: 'surprised', headDeco: 'corn' },
+  { id: 4, name: '포도', bg: '#7E57C2', face: '#D1C4E9', accent: '#4527A0', expr: 'angry', headDeco: 'grape' },
 ];
 
 // ============ CELL ============
@@ -371,18 +367,18 @@ class Cell {
       [[-0.15, -0.6], [0.15, -0.6], [0, -0.7]].forEach(([dx, dy]) => {
         ctx.beginPath(); ctx.arc(x + faceR * dx, y + faceR * dy, 2, 0, Math.PI * 2); ctx.fill();
       });
-    } else if (deco === 'eggplant') {
-      // 가지 꼭지 (초록 모자)
-      ctx.fillStyle = '#4CAF50';
-      ctx.beginPath();
-      ctx.moveTo(x - faceR * 0.5, y - faceR * 0.75);
-      ctx.quadraticCurveTo(x - faceR * 0.3, y - faceR * 1.1, x, y - faceR * 0.85);
-      ctx.quadraticCurveTo(x + faceR * 0.3, y - faceR * 1.1, x + faceR * 0.5, y - faceR * 0.75);
-      ctx.quadraticCurveTo(x, y - faceR * 0.7, x - faceR * 0.5, y - faceR * 0.75);
-      ctx.fill();
-      // 꼭지 줄기
-      ctx.strokeStyle = '#2E7D32'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(x, y - faceR * 0.9); ctx.lineTo(x, y - faceR * 1.1); ctx.stroke();
+    } else if (deco === 'grape') {
+      // 포도 알갱이 (머리 위에 작은 원들)
+      ctx.fillStyle = '#9575CD';
+      [[-0.2, -0.95], [0.2, -0.95], [0, -1.1], [-0.1, -1.0], [0.1, -1.0]].forEach(([dx, dy]) => {
+        ctx.beginPath(); ctx.arc(x + faceR * dx, y + faceR * dy, 4, 0, Math.PI * 2); ctx.fill();
+      });
+      // 줄기
+      ctx.strokeStyle = '#4CAF50'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(x, y - faceR * 1.1); ctx.lineTo(x + 3, y - faceR * 1.25); ctx.stroke();
+      // 잎
+      ctx.fillStyle = '#66BB6A';
+      ctx.beginPath(); ctx.ellipse(x + 5, y - faceR * 1.2, 5, 3, 0.3, 0, Math.PI * 2); ctx.fill();
     }
 
     // --- 폭탄이면 다르게 그리기 ---
@@ -413,7 +409,7 @@ class Cell {
       ctx.beginPath(); ctx.arc(x+2, y-faceR-15, 3+fl, 0, Math.PI*2); ctx.fill();
       // 카운트다운
       ctx.fillStyle = '#FFF';
-      ctx.font = `bold ${faceR*0.7}px sans-serif`;
+      ctx.font = `bold ${faceR*0.7}px Jua, sans-serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(Math.ceil(this._bombTimer), x, y+2);
       // 진행도 바
@@ -424,7 +420,7 @@ class Cell {
       ctx.fillStyle = prog>0.7?'#4CAF50':prog>0.4?'#FFAB00':'#F44336';
       ctx.fillRect(bX, bY, bW*prog, bH);
       // 힌트
-      ctx.fillStyle = '#FFF'; ctx.font = 'bold 10px sans-serif';
+      ctx.fillStyle = '#FFF'; ctx.font = 'bold 10px Jua, sans-serif';
       ctx.fillText(`👆${this._bombTaps}/${this._bombMaxTaps}`, x, bY+bH+10);
       ctx.restore();
       return; // 폭탄이면 여기서 끝 (일반 표정 안 그림)
@@ -444,9 +440,9 @@ class Cell {
 // ============ FACES (귀엽고 세련되게) ============
 function drawFace(type, x, y, r) {
   const s = r * 0.9;
-  const eyeY = y - s * 0.08;
-  const eyeSpacing = s * 0.22;
-  const eyeR = s * 0.14;
+  const eyeY = y - s * 0.06;
+  const eyeSpacing = s * 0.24;
+  const eyeR = s * 0.17;
 
   // 공통: 큰 둥근 눈 (캐릭터감)
   if (type === 'angry') {
@@ -689,11 +685,11 @@ function dropColumns() {
       const newCell = new Cell(c, -empty + i, randomType());
       newCell.y = gridY + (-empty + i) * cellH + cellH / 2;
 
-      // 폭탄 확률: 10초 이후, 그리드에 폭탄 없을 때, 5% 확률 (시간에 따라 증가)
-      const bombChance = elapsed > 10 && !hasBombInGrid() ? Math.min(0.05 + elapsed * 0.002, 0.15) : 0;
-      if (Math.random() < bombChance) {
+      // 폭탄: N번째 수확마다 1개 확정 등장
+      if (swipeCount >= nextBombAt && !hasBombInGrid() && !newCell.isBomb && i === 0) {
         newCell.isBomb = true;
         bombCount++;
+        nextBombAt = swipeCount + Math.max(2, 4 - Math.floor(bombCount * 0.3)); // 점점 자주
       }
 
       grid[c].unshift(newCell);
@@ -1020,6 +1016,7 @@ function onUp(e) {
 
   if (swipePath.length >= 3 && !animating) {
     // 스와이프로 3개 이상 → 한꺼번에 터짐!
+    swipeCount++;
     currentChain = 0;
     removeGroup(swipePath, 0);
     animating = true;
@@ -1074,7 +1071,7 @@ function drawSwipeLine() {
 
   // 경로 위 숫자 표시
   ctx.fillStyle = 'rgba(255,255,255,0.9)';
-  ctx.font = 'bold 16px sans-serif';
+  ctx.font = 'bold 16px Jua, sans-serif';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const last = swipePath[swipePath.length - 1];
   const lastCell = grid[last.c][last.r];
@@ -1248,7 +1245,7 @@ function startCountdown() {
   particles = []; score = 0; combo = 0; maxCombo = 0; chainLevel = 0;
   pullCount = 0; elapsed = 0; feverMode = false; gameOver = false;
   animating = false; timeLeft = 30; isNewRecord = false; currentChain = 0;
-  bombCount = 0; animTimeout = 0;
+  bombCount = 0; swipeCount = 0; nextBombAt = 3; animTimeout = 0;
   document.getElementById('hud-score').style.color = '';
   document.getElementById('fever-overlay').classList.remove('active');
   document.getElementById('fever-overlay').style.boxShadow = '';
