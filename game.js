@@ -617,8 +617,8 @@ function findGroup(col, row) {
     const key = `${c},${r}`;
     if (visited.has(key)) continue;
     if (c < 0 || c >= COLS || r < 0) continue;
-    if (!grid[c] || r >= grid[c].length) continue;
-    if (!grid[c][r] || grid[c][r].removing) continue;
+    if (!grid[c] || r < 0 || r >= grid[c].length) continue;
+    if (!grid[c][r] || grid[c][r].removing || grid[c][r].isBomb) continue;
     if (grid[c][r].typeId !== typeId) continue;
 
     visited.add(key);
@@ -678,13 +678,13 @@ function removeGroup(group, chain) {
   const color = chain >= 3 ? '#FF1744' : chain >= 2 ? '#FF9100' : size >= 6 ? '#FFD700' : '#4CAF50';
   showFB(centerX - 30, centerY, `+${pts}${sizeText}${chainText}`, color, fontSize);
 
-  // 파티클
+  // 파티클 + 즉시 제거 (removing 대신 바로 null)
   group.forEach(({ c, r }) => {
-    const cell = grid[c][r];
+    const cell = grid[c] && grid[c][r];
     if (cell) {
-      cell.removing = true;
-      burst(cell.x, cell.y, cell.type.color, 4 + chain * 2);
+      burst(cell.x, cell.y, cell.type ? cell.type.color : '#888', 4 + chain * 2);
       burst(cell.x, cell.y, '#A0522D', 2);
+      grid[c][r] = null; // 즉시 제거
     }
   });
 }
@@ -697,10 +697,8 @@ function dropColumns() {
   for (let c = 0; c < COLS; c++) {
     if (!grid[c]) grid[c] = [];
 
-    // removing 셀 제거
-    const before = grid[c].length;
+    // null 및 removing 셀 제거
     grid[c] = grid[c].filter(cell => cell && !cell.removing);
-    const removed = before - grid[c].length;
 
     // 빈 칸 수 (항상 ROWS개 유지)
     const empty = ROWS - grid[c].length;
@@ -916,8 +914,8 @@ function tapBombCell(cell) {
     burst(cell.x, cell.y, '#4CAF50', 15);
     burst(cell.x, cell.y, '#FFD700', 10);
     triggerShake(8);
-    cell.isBomb = false;
-    cell.removing = true;
+    // 셀을 null로 제거
+    if (grid[cell.col]) grid[cell.col][cell.row] = null;
     // 낙하
     setTimeout(() => { dropColumns(); setTimeout(() => { animating = false; }, 350); }, 250);
     updateHUD();
@@ -1256,19 +1254,26 @@ function loop(ts) {
   if (gameRunning) {
     for (let c = 0; c < COLS; c++) {
       if (!grid[c]) grid[c] = [];
-      // 빈 칸 있으면 채우기
+      // null/removing 제거
+      grid[c] = grid[c].filter(cell => cell && !cell.removing);
+      // 빈 칸 채우기 (위에서 떨어짐)
+      let filled = false;
       while (grid[c].length < ROWS) {
         const newCell = new Cell(c, 0, randomType());
-        newCell.y = gridY - cellH;
+        newCell.y = gridY - (ROWS - grid[c].length) * cellH;
+        newCell.x = gridX + c * cellW + cellW / 2;
         newCell.scale = 0;
         grid[c].unshift(newCell);
+        filled = true;
       }
+      // 초과분 제거
+      if (grid[c].length > ROWS) grid[c] = grid[c].slice(grid[c].length - ROWS);
       // 위치 재설정
       for (let r = 0; r < grid[c].length; r++) {
         grid[c][r].col = c;
         grid[c][r].row = r;
         grid[c][r].targetY = gridY + r * cellH + cellH / 2;
-        if (!grid[c][r].x) grid[c][r].x = gridX + c * cellW + cellW / 2;
+        grid[c][r].x = gridX + c * cellW + cellW / 2;
       }
     }
     updateBombs(dt);
