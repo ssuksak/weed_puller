@@ -783,22 +783,11 @@ function checkChains() {
 
   if (foundMatch) {
     currentChain++;
-    animating = true;
-    // 딜레이 후 낙하
-    setTimeout(() => {
-      dropColumns();
-      // 낙하 후 다시 체크
-      setTimeout(() => checkChains(), 400);
-    }, 300);
+    dropColumns();
     return true;
   } else {
     currentChain = 0;
-    animating = false;
-    // 매치 가능한 거 있는지 체크
-    if (!hasAnyMatch()) {
-      // 섞기
-      shuffleGrid();
-    }
+    if (!hasAnyMatch()) shuffleGrid();
     return false;
   }
 }
@@ -915,10 +904,9 @@ function tapBombCell(cell) {
     burst(cell.x, cell.y, '#4CAF50', 15);
     burst(cell.x, cell.y, '#FFD700', 10);
     triggerShake(8);
-    // 셀을 null로 제거
+    // 셀을 null로 제거 + 즉시 낙하
     if (grid[cell.col]) grid[cell.col][cell.row] = null;
-    // 낙하
-    setTimeout(() => { dropColumns(); setTimeout(() => { animating = false; }, 350); }, 250);
+    dropColumns();
     updateHUD();
   }
 }
@@ -1049,21 +1037,15 @@ function onUp(e) {
   e.preventDefault?.();
   swiping = false;
 
-  if (swipePath.length >= 3 && !animating) {
+  if (swipePath.length >= 3) {
     // 스와이프로 3개 이상 → 한꺼번에 터짐!
     swipeCount++;
     currentChain = 0;
     removeGroup(swipePath, 0);
-    animating = true;
     clearSwipeHighlight();
-    setTimeout(() => {
-      dropColumns();
-      setTimeout(() => {
-        animating = false;
-        // 매치 가능한 게 없으면 셔플
-        if (!hasAnyMatch()) shuffleGrid();
-      }, 400);
-    }, 250);
+    // 즉시 낙하 + 셔플 체크
+    dropColumns();
+    setTimeout(() => { if (!hasAnyMatch()) shuffleGrid(); }, 300);
   } else if (swipePath.length <= 2) {
     // 2개 이하 → 폭탄 or 미스
     if (swipePath.length >= 1) {
@@ -1226,11 +1208,7 @@ function loop(ts) {
   ctx.clearRect(-10, -10, canvas.width + 20, canvas.height + 20);
   drawBG();
 
-  // animating 안전장치 (3초 타임아웃)
-  if (animating) {
-    animTimeout += dt;
-    if (animTimeout > 1.5) { animating = false; animTimeout = 0; }
-  } else { animTimeout = 0; }
+  // (animating 제거됨)
 
   if (feverMode && gameRunning) {
     feverTimer -= dt;
