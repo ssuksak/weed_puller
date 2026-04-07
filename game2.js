@@ -689,50 +689,46 @@ function removeGroup(group, chain) {
   const color = chain >= 3 ? '#FF1744' : chain >= 2 ? '#FF9100' : size >= 6 ? '#FFD700' : '#4CAF50';
   showFB(centerX - 30, centerY, `+${pts}${sizeText}${chainText}`, color, fontSize);
 
-  // 파티클 + 즉시 제거 — 셀 객체 참조로 찾아서 제거
+  // 셀 객체를 Set에 모아서 제거 (인덱스 아닌 객체 참조!)
+  const deadCells = new Set();
   group.forEach(({ c, r }) => {
-    // c,r 인덱스가 아니라 해당 열에서 셀 객체를 찾아서 제거
-    if (!grid[c]) return;
+    if (!grid[c] || !grid[c][r]) return;
     const cell = grid[c][r];
-    if (cell) {
-      burst(cell.x, cell.y, cell.type ? cell.type.color : '#888', 4 + chain * 2);
-      burst(cell.x, cell.y, '#A0522D', 2);
-    }
-    // 해당 셀을 marked로 표시 (나중에 한번에 필터)
-    if (grid[c][r]) grid[c][r]._dead = true;
+    deadCells.add(cell);
+    burst(cell.x, cell.y, cell.type ? cell.type.color : '#888', 4 + chain * 2);
+    burst(cell.x, cell.y, '#A0522D', 2);
   });
 
-  // 모든 열에서 dead 셀 제거 + 즉시 채움
-  for (let c = 0; c < COLS; c++) {
-    if (!grid[c]) continue;
-    const hadDead = grid[c].some(cell => cell && cell._dead);
-    if (hadDead) {
-      grid[c] = grid[c].filter(cell => cell && !cell._dead);
-      const empty = ROWS - grid[c].length;
-      const newCells = [];
-      for (let i = 0; i < empty; i++) {
-        const nc = new Cell(c, i, randomType());
-        nc.y = gridY + (i - empty) * cellH + cellH / 2;
-        nc.x = gridX + c * cellW + cellW / 2;
-        nc.scale = 0;
-        // 폭탄 스폰
-        if (swipeCount >= nextBombAt && countBombsInGrid() < maxBombsAllowed() && i === 0 && !newCells.some(n => n.isBomb)) {
-          nc.isBomb = true;
-          bombCount++;
-          nextBombAt = swipeCount + Math.max(2, 4 - Math.floor(bombCount * 0.3));
-        }
-        newCells.push(nc);
+  // 영향받은 열만 리빌드
+  const affectedCols = new Set(group.map(g => g.c));
+  affectedCols.forEach(c => {
+    if (!grid[c]) return;
+    // dead 셀 제거 (객체 참조로!)
+    grid[c] = grid[c].filter(cell => cell && !deadCells.has(cell));
+    const empty = ROWS - grid[c].length;
+    if (empty <= 0) return;
+    const newCells = [];
+    for (let i = 0; i < empty; i++) {
+      const nc = new Cell(c, i, randomType());
+      nc.y = gridY + (i - empty) * cellH + cellH / 2;
+      nc.x = gridX + c * cellW + cellW / 2;
+      nc.scale = 0;
+      // 폭탄 스폰
+      if (swipeCount >= nextBombAt && countBombsInGrid() < maxBombsAllowed() && i === 0 && !newCells.some(n => n.isBomb)) {
+        nc.isBomb = true;
+        bombCount++;
+        nextBombAt = swipeCount + Math.max(2, 4 - Math.floor(bombCount * 0.3));
       }
-      grid[c] = [...newCells, ...grid[c]];
-      // row 재설정
-      for (let r2 = 0; r2 < grid[c].length; r2++) {
-        grid[c][r2].col = c;
-        grid[c][r2].row = r2;
-        grid[c][r2].targetY = gridY + r2 * cellH + cellH / 2;
-        grid[c][r2].x = gridX + c * cellW + cellW / 2;
-      }
+      newCells.push(nc);
     }
-  }
+    grid[c] = [...newCells, ...grid[c]];
+    for (let r = 0; r < grid[c].length; r++) {
+      grid[c][r].col = c;
+      grid[c][r].row = r;
+      grid[c][r].targetY = gridY + r * cellH + cellH / 2;
+      grid[c][r].x = gridX + c * cellW + cellW / 2;
+    }
+  });
 }
 
 // 낙하 처리 (심플하고 확실하게)
