@@ -564,9 +564,9 @@ function drawFace(type, x, y, r) {
 
 // ============ GRID LOGIC ============
 function initGrid() {
-  grid = [];
+  grid = new Array(COLS);
   for (let c = 0; c < COLS; c++) {
-    grid[c] = [];
+    grid[c] = new Array(ROWS);
     for (let r = 0; r < ROWS; r++) {
       grid[c][r] = new Cell(c, r, randomType());
     }
@@ -702,56 +702,48 @@ function removeGroup(group, chain) {
 }
 
 // 그리드 리빌드 — 유일한 그리드 변경 함수!
+// 리빌드 — 배열 구조를 절대 변경하지 않음!
+// _dead 셀은 제자리에서 새 타입으로 교체만 함 (낙하 효과는 시각적으로만)
 function rebuildGrid() {
-  let dropped = false;
+  let changed = false;
   let bombPlaced = false;
 
   for (let c = 0; c < COLS; c++) {
-    if (!grid[c]) grid[c] = new Array(ROWS).fill(null);
-
-    // alive: null, _dead, removing 아닌 것만
-    const alive = [];
-    for (let r = 0; r < grid[c].length; r++) {
-      const cell = grid[c][r];
-      if (cell && !cell._dead && !cell.removing) {
-        alive.push(cell);
-      }
+    // 열이 없거나 길이 다르면 새로 생성
+    if (!grid[c] || grid[c].length !== ROWS) {
+      grid[c] = [];
+      for (let r = 0; r < ROWS; r++) grid[c][r] = new Cell(c, r, randomType());
+      changed = true;
+      continue;
     }
 
-    const empty = ROWS - alive.length;
-    if (empty > 0) dropped = true;
-
-    // 새 셀 생성 (위쪽 빈 칸)
-    const newCells = [];
-    for (let i = 0; i < empty; i++) {
-      const newCell = new Cell(c, i, randomType());
-      newCell.y = gridY + (i - empty) * cellH + cellH / 2; // 화면 위에서 시작
-      newCell.scale = 0;
-
-      // 폭탄
-      if (!bombPlaced && swipeCount >= nextBombAt && countBombsInGrid() < maxBombsAllowed() && i === 0) {
-        newCell.isBomb = true;
-        bombCount++;
-        nextBombAt = swipeCount + Math.max(2, 4 - Math.floor(bombCount * 0.3));
-        bombPlaced = true;
-      }
-
-      newCells.push(newCell);
-    }
-
-    // 그리드 재구성: 새 셀(위) + 기존 살아있는 셀(아래)
-    grid[c] = [...newCells, ...alive];
-
-    // row/위치 재설정
     for (let r = 0; r < ROWS; r++) {
+      const cell = grid[c][r];
+      // null이거나 _dead면 새 타입으로 교체 (배열 위치 그대로!)
+      if (!cell || cell._dead || cell.removing) {
+        const newType = randomType();
+        grid[c][r] = new Cell(c, r, newType);
+        grid[c][r].scale = 0; // 등장 애니메이션
+
+        // 폭탄
+        if (!bombPlaced && swipeCount >= nextBombAt && countBombsInGrid() < maxBombsAllowed()) {
+          grid[c][r].isBomb = true;
+          bombCount++;
+          nextBombAt = swipeCount + Math.max(2, 4 - Math.floor(bombCount * 0.3));
+          bombPlaced = true;
+        }
+        changed = true;
+      }
+
+      // 위치 항상 강제 세팅
       grid[c][r].col = c;
       grid[c][r].row = r;
       grid[c][r].targetY = gridY + r * cellH + cellH / 2;
       grid[c][r].x = gridX + c * cellW + cellW / 2;
     }
   }
-  if (dropped) sfx('drop');
-  return dropped;
+  if (changed) sfx('drop');
+  return changed;
 }
 
 // 연쇄 체크
