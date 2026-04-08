@@ -216,9 +216,10 @@ let animating = false;
 let animTimeout = 0;
 
 // 폭탄 시스템 — 그리드 안에 섞여 내려옴
-let bombCount = 0; // 지금까지 나온 폭탄 수
-let swipeCount = 0; // 드래그 수확 횟수 (3번마다 폭탄)
-let nextBombAt = 3; // 다음 폭탄이 나올 수확 횟수
+let bombCount = 0;
+let swipeCount = 0;
+let nextBombAt = 3;
+let needsRebuild = false; // removeGroup 후 리빌드 필요 플래그
 let timeLeft = 30;
 let timerInterval = null;
 
@@ -689,61 +690,31 @@ function removeGroup(group, chain) {
   const color = chain >= 3 ? '#FF1744' : chain >= 2 ? '#FF9100' : size >= 6 ? '#FFD700' : '#4CAF50';
   showFB(centerX - 30, centerY, `+${pts}${sizeText}${chainText}`, color, fontSize);
 
-  // 셀 객체를 Set에 모아서 제거 (인덱스 아닌 객체 참조!)
-  const deadCells = new Set();
+  // 셀 마킹만 (실제 제거는 rebuildGrid에서)
   group.forEach(({ c, r }) => {
     if (!grid[c] || !grid[c][r]) return;
     const cell = grid[c][r];
-    deadCells.add(cell);
     burst(cell.x, cell.y, cell.type ? cell.type.color : '#888', 4 + chain * 2);
     burst(cell.x, cell.y, '#A0522D', 2);
+    cell._dead = true;
   });
-
-  // 영향받은 열만 리빌드
-  const affectedCols = new Set(group.map(g => g.c));
-  affectedCols.forEach(c => {
-    if (!grid[c]) return;
-    // dead 셀 제거 (객체 참조로!)
-    grid[c] = grid[c].filter(cell => cell && !deadCells.has(cell));
-    const empty = ROWS - grid[c].length;
-    if (empty <= 0) return;
-    const newCells = [];
-    for (let i = 0; i < empty; i++) {
-      const nc = new Cell(c, i, randomType());
-      nc.y = gridY + (i - empty) * cellH + cellH / 2;
-      nc.x = gridX + c * cellW + cellW / 2;
-      nc.scale = 0;
-      // 폭탄 스폰
-      if (swipeCount >= nextBombAt && countBombsInGrid() < maxBombsAllowed() && i === 0 && !newCells.some(n => n.isBomb)) {
-        nc.isBomb = true;
-        bombCount++;
-        nextBombAt = swipeCount + Math.max(2, 4 - Math.floor(bombCount * 0.3));
-      }
-      newCells.push(nc);
-    }
-    grid[c] = [...newCells, ...grid[c]];
-    for (let r = 0; r < grid[c].length; r++) {
-      grid[c][r].col = c;
-      grid[c][r].row = r;
-      grid[c][r].targetY = gridY + r * cellH + cellH / 2;
-      grid[c][r].x = gridX + c * cellW + cellW / 2;
-    }
-  });
+  needsRebuild = true;
 }
 
-// 낙하 처리 (심플하고 확실하게)
-function dropColumns() {
+// 그리드 리빌드 — 유일한 그리드 변경 함수!
+function rebuildGrid() {
   let dropped = false;
   let bombPlaced = false;
 
   for (let c = 0; c < COLS; c++) {
     if (!grid[c]) grid[c] = new Array(ROWS).fill(null);
 
-    // 아래부터 채움: null이 아닌 셀만 모아서 아래로 몰기
+    // alive: null, _dead, removing 아닌 것만
     const alive = [];
-    for (let r = 0; r < ROWS; r++) {
-      if (grid[c][r] && !grid[c][r].removing) {
-        alive.push(grid[c][r]);
+    for (let r = 0; r < grid[c].length; r++) {
+      const cell = grid[c][r];
+      if (cell && !cell._dead && !cell.removing) {
+        alive.push(cell);
       }
     }
 
@@ -825,7 +796,7 @@ function checkChains() {
 
   if (foundMatch) {
     currentChain++;
-    dropColumns();
+    rebuildGrid();
     return true;
   } else {
     currentChain = 0;
@@ -956,27 +927,8 @@ function tapBombCell(cell) {
     burst(cell.x, cell.y, '#4CAF50', 15);
     burst(cell.x, cell.y, '#FFD700', 10);
     triggerShake(8);
-    // 셀을 dead로 표시 + 즉시 낙하
     cell._dead = true;
-    const bc = cell.col;
-    if (grid[bc]) {
-      grid[bc] = grid[bc].filter(c2 => c2 && !c2._dead);
-      const empty = ROWS - grid[bc].length;
-      const newCells = [];
-      for (let i = 0; i < empty; i++) {
-        const nc = new Cell(bc, i, randomType());
-        nc.y = gridY + (i - empty) * cellH + cellH / 2;
-        nc.x = gridX + bc * cellW + cellW / 2;
-        nc.scale = 0;
-        newCells.push(nc);
-      }
-      grid[bc] = [...newCells, ...grid[bc]];
-      for (let r = 0; r < grid[bc].length; r++) {
-        grid[bc][r].col = bc; grid[bc][r].row = r;
-        grid[bc][r].targetY = gridY + r * cellH + cellH / 2;
-        grid[bc][r].x = gridX + bc * cellW + cellW / 2;
-      }
-    }
+    needsRebuild = true;
     updateHUD();
   }
 }
@@ -1111,9 +1063,8 @@ function onUp(e) {
     // 스와이프로 3개 이상 → 한꺼번에 터짐!
     swipeCount++;
     currentChain = 0;
-    removeGroup(swipePath, 0); // 내부에서 낙하까지 처리
+    removeGroup(swipePath, 0); // _dead 마킹만, 리빌드는 게임 루프에서
     clearSwipeHighlight();
-    setTimeout(() => { if (!hasAnyMatch()) shuffleGrid(); }, 300);
   } else if (swipePath.length <= 2) {
     // 2개 이하 → 폭탄 or 미스
     if (swipePath.length >= 1) {
@@ -1313,15 +1264,18 @@ function loop(ts) {
       }
     }
 
-    let needsDrop = false;
-    for (let c = 0; c < COLS; c++) {
-      if (!grid[c] || grid[c].length !== ROWS) { needsDrop = true; break; }
-      for (let r = 0; r < ROWS; r++) {
-        if (!grid[c][r]) { needsDrop = true; break; }
-      }
-      if (needsDrop) break;
+    // 리빌드 필요하면 실행 (removeGroup에서 마킹 후)
+    if (needsRebuild) {
+      needsRebuild = false;
+      rebuildGrid();
+      if (!hasAnyMatch()) shuffleGrid();
     }
-    if (needsDrop) dropColumns();
+    // 안전장치: 어떤 열이라도 ROWS가 아니면 리빌드
+    for (let c = 0; c < COLS; c++) {
+      if (!grid[c] || grid[c].length !== ROWS || grid[c].some(x => !x || x._dead)) {
+        rebuildGrid(); break;
+      }
+    }
     updateBombs(dt);
   }
 
@@ -1349,7 +1303,7 @@ function startCountdown() {
   particles = []; score = 0; combo = 0; maxCombo = 0; chainLevel = 0;
   pullCount = 0; elapsed = 0; feverMode = false; gameOver = false;
   animating = false; timeLeft = 30; isNewRecord = false; currentChain = 0;
-  bombCount = 0; swipeCount = 0; nextBombAt = 3; animTimeout = 0;
+  bombCount = 0; swipeCount = 0; nextBombAt = 3; needsRebuild = false;
   document.getElementById('hud-score').style.color = '';
   document.getElementById('fever-overlay').classList.remove('active');
   document.getElementById('fever-overlay').style.boxShadow = '';
