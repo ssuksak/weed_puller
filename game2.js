@@ -305,7 +305,7 @@ class Cell {
   }
 
   draw() {
-    if (this.scale <= 0) return;
+    if (this.scale <= 0.01) this.scale = 0.1; // 안 보이는 셀 방지
     ctx.save();
 
     const sc = this.scale * (1 + Math.sin(this.wobble) * 0.02);
@@ -723,7 +723,7 @@ function rebuildGrid() {
       if (!cell || cell._dead || cell.removing) {
         const newType = randomType();
         grid[c][r] = new Cell(c, r, newType);
-        grid[c][r].scale = 0; // 등장 애니메이션
+        grid[c][r].scale = 0.15; // 등장 애니메이션 (0이면 안 보임 방지)
 
         // 폭탄
         if (!bombPlaced && swipeCount >= nextBombAt && countBombsInGrid() < maxBombsAllowed()) {
@@ -967,10 +967,11 @@ canvas.addEventListener('mouseup', onUp);
 function pos(e) { const t = e.touches ? e.touches[0] : e; return { x: t.clientX, y: t.clientY }; }
 
 function findCellAt(x, y) {
-  for (let c = 0; c < COLS; c++) {
-    for (let r = 0; r < grid[c].length; r++) {
-      if (grid[c][r] && grid[c][r].contains(x, y)) return { c, r };
-    }
+  // 좌표 기반으로 직접 계산 (정확하고 빠름)
+  const c = Math.floor((x - gridX) / cellW);
+  const r = Math.floor((y - gridY) / cellH);
+  if (c >= 0 && c < COLS && r >= 0 && r < ROWS && grid[c] && grid[c][r] && !grid[c][r]._dead) {
+    return { c, r };
   }
   return null;
 }
@@ -1272,6 +1273,18 @@ function loop(ts) {
   }
 
   if (gameRunning) updateHUD();
+
+  // 디버그: 각 열의 셀 개수 표시
+  ctx.fillStyle = 'rgba(255,0,0,0.8)';
+  ctx.font = 'bold 10px Jua, sans-serif';
+  ctx.textAlign = 'center';
+  for (let c = 0; c < COLS; c++) {
+    const len = grid[c] ? grid[c].length : 0;
+    const nulls = grid[c] ? grid[c].filter(x => !x).length : 0;
+    const deads = grid[c] ? grid[c].filter(x => x && x._dead).length : 0;
+    const cx = gridX + c * cellW + cellW / 2;
+    ctx.fillText(`${len}/n${nulls}/d${deads}`, cx, gridY + ROWS * cellH + 15);
+  }
 
   ctx.restore();
   requestAnimationFrame(loop);
