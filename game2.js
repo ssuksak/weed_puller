@@ -70,14 +70,20 @@ function scheduleBGM() {
     o.start(time); o.stop(time + dur);
   };
   while (bgmNextTime < audioCtx.currentTime + 0.5) {
-    // 시간에 따라 멜로디 전환: 동화풍 → 중반 → 긴장
-    const useMel = timeLeft <= 5 ? BGM_TENSE : timeLeft <= 15 ? BGM_MID : BGM_CALM;
+    // 폭탄 있으면 긴장 멜로디!
+    const hasBombs = typeof countBombsInGrid === 'function' && countBombsInGrid() > 0;
+    const useMel = hasBombs ? BGM_TENSE : timeLeft <= 5 ? BGM_TENSE : timeLeft <= 15 ? BGM_MID : BGM_CALM;
     const [f, d] = useMel[bgmIdx % useMel.length];
-    // 악기: 시간 갈수록 날카로워짐
-    const waveType = timeLeft <= 5 ? 'square' : timeLeft <= 12 ? 'triangle' : 'sine';
-    // 볼륨: 시간 갈수록 커짐
-    const vol = 0.2 + gameProgress * 0.15;
+    // 악기: 폭탄 있으면 날카롭게
+    const waveType = hasBombs ? 'sawtooth' : timeLeft <= 5 ? 'square' : timeLeft <= 12 ? 'triangle' : 'sine';
+    // 볼륨
+    const vol = hasBombs ? 0.28 : 0.2 + gameProgress * 0.15;
     mk(waveType, f, bgmNextTime, d * tempo * 0.9, vol);
+
+    // 폭탄 있으면 불안한 저음 추가
+    if (hasBombs && bgmIdx % 2 === 0) {
+      mk('sine', f * 0.5, bgmNextTime, d * tempo * 0.5, 0.1);
+    }
     bgmNextTime += d * tempo; bgmIdx++;
   }
   const bt = tempo * 4;
@@ -92,8 +98,9 @@ function scheduleBGM() {
   const dt2 = tempo * (2 - gameProgress * 0.7); // 점진적으로 빨라짐
   while (bgmDrumNext < audioCtx.currentTime + 0.5) {
     const beat = bgmDrumBeat % 4;
-    const kickVol = 0.15 + gameProgress * 0.25; // 처음 살짝 → 나중 쿵쿵
-    if (beat === 0 || beat === 2) mk('sine', 150, bgmDrumNext, 0.1, kickVol);
+    const hasBombs2 = typeof countBombsInGrid === 'function' && countBombsInGrid() > 0;
+    const kickVol = hasBombs2 ? 0.35 : 0.15 + gameProgress * 0.25;
+    if (beat === 0 || beat === 2) mk('sine', hasBombs2 ? 100 : 150, bgmDrumNext, 0.1, kickVol);
     if (beat === 1 || beat === 3) {
       const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.04, audioCtx.sampleRate);
       const sn = buf.getChannelData(0);
@@ -755,7 +762,7 @@ function rebuildGrid() {
       if (!bombPlaced && swipeCount >= nextBombAt && countBombsInGrid() < maxBombsAllowed() && i === 0) {
         nc.isBomb = true;
         bombCount++;
-        nextBombAt = swipeCount + Math.max(2, 4 - Math.floor(bombCount * 0.3));
+        nextBombAt = swipeCount + Math.max(1, 3 - Math.floor(bombCount * 0.3));
         bombPlaced = true;
       }
       newCol[i] = nc;
@@ -911,9 +918,10 @@ function hasBombInGrid() { return countBombsInGrid() > 0; }
 
 // 시간에 따라 허용되는 최대 폭탄 수
 function maxBombsAllowed() {
-  if (elapsed < 10) return 1;
-  if (elapsed < 20) return 2;
-  return 3;
+  if (elapsed < 8) return 1;
+  if (elapsed < 15) return 2;
+  if (elapsed < 25) return 3;
+  return 4;
 }
 
 function findBombCell() {
@@ -932,7 +940,7 @@ function initBombState(cell) {
     cell._bombTaps = 0;
     const diff = Math.min(bombCount, 6);
     cell._bombMaxTaps = 5 + diff * 2;
-    cell._bombTimer = Math.max(4, 7 - diff * 0.3);
+    cell._bombTimer = Math.max(3, 5 - diff * 0.2);
     cell._bombMaxTimer = cell._bombTimer;
   }
 }
