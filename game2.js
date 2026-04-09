@@ -702,40 +702,75 @@ function removeGroup(group, chain) {
 }
 
 // 그리드 리빌드 — 유일한 그리드 변경 함수!
-// 리빌드 — 배열 구조를 절대 변경하지 않음!
-// _dead 셀은 제자리에서 새 타입으로 교체만 함 (낙하 효과는 시각적으로만)
+// 리빌드 — 배열 크기 COLS x ROWS 절대 불변!
+// _dead 셀 제거 → 위 셀 아래로 떨어짐 → 맨 위에 새 셀 채움
 function rebuildGrid() {
   let changed = false;
   let bombPlaced = false;
 
   for (let c = 0; c < COLS; c++) {
-    // 열이 없거나 길이 다르면 새로 생성
+    // 안전장치: 열이 없으면 새로 생성
     if (!grid[c] || grid[c].length !== ROWS) {
-      grid[c] = [];
+      grid[c] = new Array(ROWS);
       for (let r = 0; r < ROWS; r++) grid[c][r] = new Cell(c, r, randomType());
       changed = true;
       continue;
     }
 
+    // 살아있는 셀만 모으기
+    const alive = [];
     for (let r = 0; r < ROWS; r++) {
       const cell = grid[c][r];
-      // null이거나 _dead면 새 타입으로 교체 (배열 위치 그대로!)
-      if (!cell || cell._dead || cell.removing) {
-        const newType = randomType();
-        grid[c][r] = new Cell(c, r, newType);
-        grid[c][r].scale = 0.15; // 등장 애니메이션 (0이면 안 보임 방지)
-
-        // 폭탄
-        if (!bombPlaced && swipeCount >= nextBombAt && countBombsInGrid() < maxBombsAllowed()) {
-          grid[c][r].isBomb = true;
-          bombCount++;
-          nextBombAt = swipeCount + Math.max(2, 4 - Math.floor(bombCount * 0.3));
-          bombPlaced = true;
-        }
-        changed = true;
+      if (cell && !cell._dead) {
+        alive.push(cell);
       }
+    }
 
-      // 위치 항상 강제 세팅
+    const deadCount = ROWS - alive.length;
+    if (deadCount === 0) {
+      // 변화 없음 — 위치만 갱신
+      for (let r = 0; r < ROWS; r++) {
+        grid[c][r].col = c;
+        grid[c][r].row = r;
+        grid[c][r].targetY = gridY + r * cellH + cellH / 2;
+        grid[c][r].x = gridX + c * cellW + cellW / 2;
+      }
+      continue;
+    }
+
+    changed = true;
+
+    // 새 배열 구성: [새셀 x deadCount] + [살아있는 셀들]
+    // 배열 크기는 항상 ROWS!
+    const newCol = new Array(ROWS);
+
+    // 윗부분: 새 셀
+    for (let i = 0; i < deadCount; i++) {
+      const nc = new Cell(c, i, randomType());
+      nc.y = gridY + (i - deadCount) * cellH + cellH / 2; // 화면 위에서 시작 (떨어지는 효과)
+      nc.x = gridX + c * cellW + cellW / 2;
+      nc.scale = 0.15;
+
+      // 폭탄
+      if (!bombPlaced && swipeCount >= nextBombAt && countBombsInGrid() < maxBombsAllowed() && i === 0) {
+        nc.isBomb = true;
+        bombCount++;
+        nextBombAt = swipeCount + Math.max(2, 4 - Math.floor(bombCount * 0.3));
+        bombPlaced = true;
+      }
+      newCol[i] = nc;
+    }
+
+    // 아랫부분: 살아있는 셀들 (아래로 밀림)
+    for (let i = 0; i < alive.length; i++) {
+      newCol[deadCount + i] = alive[i];
+    }
+
+    // 배열 교체 (크기 동일!)
+    grid[c] = newCol;
+
+    // 위치 갱신 (떨어지는 애니메이션)
+    for (let r = 0; r < ROWS; r++) {
       grid[c][r].col = c;
       grid[c][r].row = r;
       grid[c][r].targetY = gridY + r * cellH + cellH / 2;
