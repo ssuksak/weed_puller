@@ -262,11 +262,11 @@ resize();
 
 // ============ WEED TYPES ============
 const TYPES = [
-  { id: 0, name: '토마토', bg: '#F44336', face: '#FFCDD2', accent: '#B71C1C', expr: 'happy', headDeco: 'tomato' },
-  { id: 1, name: '당근', bg: '#FF7043', face: '#FFE0B2', accent: '#D84315', expr: 'laugh', headDeco: 'carrot' },
-  { id: 2, name: '양배추', bg: '#66BB6A', face: '#C8E6C9', accent: '#2E7D32', expr: 'wink', headDeco: 'cabbage' },
-  { id: 3, name: '옥수수', bg: '#FFCA28', face: '#FFF9C4', accent: '#F57F17', expr: 'surprised', headDeco: 'corn' },
-  { id: 4, name: '포도', bg: '#7E57C2', face: '#D1C4E9', accent: '#4527A0', expr: 'angry', headDeco: 'grape' },
+  { id: 0, name: '민들레', bg: '#F44336', face: '#FFCDD2', accent: '#B71C1C', expr: 'happy', headDeco: 'tomato' },
+  { id: 1, name: '쇠비름', bg: '#FF7043', face: '#FFE0B2', accent: '#D84315', expr: 'laugh', headDeco: 'carrot' },
+  { id: 2, name: '바랭이', bg: '#66BB6A', face: '#C8E6C9', accent: '#2E7D32', expr: 'wink', headDeco: 'cabbage' },
+  { id: 3, name: '명아주', bg: '#FFCA28', face: '#FFF9C4', accent: '#F57F17', expr: 'surprised', headDeco: 'corn' },
+  { id: 4, name: '냉이', bg: '#7E57C2', face: '#D1C4E9', accent: '#4527A0', expr: 'angry', headDeco: 'grape' },
 ];
 
 // ============ CELL ============
@@ -1402,11 +1402,11 @@ function endGame() {
   }
 
   let emoji, title;
-  if (isNewRecord) { emoji = '🎉'; title = '신기록!'; }
-  else if (score >= 3000) { emoji = '🏆'; title = '잡초 마스터!'; }
-  else if (score >= 1500) { emoji = '🌟'; title = '잡초 전문가!'; }
-  else if (score >= 500) { emoji = '💪'; title = '잘 뽑았어요!'; }
-  else { emoji = '😅'; title = '다시 도전!'; }
+  if (isNewRecord) { emoji = '🎉'; title = '밭의 전설!'; }
+  else if (score >= 3000) { emoji = '🧑‍🌾'; title = '프로 농부!'; }
+  else if (score >= 1500) { emoji = '🌾'; title = '베테랑 농부!'; }
+  else if (score >= 500) { emoji = '💪'; title = '열심히 뽑았어요!'; }
+  else { emoji = '🌱'; title = '아직 초보 농부...'; }
 
   document.getElementById('hud').classList.add('hidden');
   document.getElementById('hud-combo').classList.add('hidden');
@@ -1426,7 +1426,7 @@ function endGame() {
       extraEl.innerHTML = `<div style="margin-bottom:12px;font-size:13px;color:#8B95A1">최고기록: ${highScore}점</div>` +
         `<button id="btn-share" style="background:none;border:1px solid #E5E8EB;border-radius:12px;padding:10px 0;width:100%;font-size:14px;font-weight:600;color:#4E5968;cursor:pointer;margin-bottom:8px">📤 점수 공유하기</button>`;
       document.getElementById('btn-share')?.addEventListener('click', () => {
-        const text = `🌿 잡초 뽑기\n⭐ ${score}점 · 최대콤보 x${maxCombo}\n\n도전해보세요! 👇\nhttps://ssuksak.github.io/weed_puller/`;
+        const text = `🧑‍🌾 뽑아라! 잡초\n⭐ ${score}점 · 최대콤보 x${maxCombo}\n\n나도 도시농부 도전! 👇\nhttps://ssuksak.github.io/weed_puller/`;
         if (navigator.share) navigator.share({ text });
         else if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => showFB(canvas.width / 2 - 40, canvas.height * 0.5, '📋 복사됨!', '#4CAF50', 20));
       });
