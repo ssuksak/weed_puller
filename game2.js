@@ -932,7 +932,7 @@ function initBombState(cell) {
     cell._bombTaps = 0;
     const diff = Math.min(bombCount, 6);
     cell._bombMaxTaps = 5 + diff * 2;
-    cell._bombTimer = Math.max(3, 5 - diff * 0.3);
+    cell._bombTimer = Math.max(4, 7 - diff * 0.3);
     cell._bombMaxTimer = cell._bombTimer;
   }
 }
