@@ -262,11 +262,10 @@ resize();
 
 // ============ WEED TYPES ============
 const TYPES = [
-  { id: 0, name: '민들레', bg: '#F44336', face: '#FFCDD2', accent: '#B71C1C', expr: 'happy', headDeco: 'tomato' },
-  { id: 1, name: '쇠비름', bg: '#FF7043', face: '#FFE0B2', accent: '#D84315', expr: 'laugh', headDeco: 'carrot' },
-  { id: 2, name: '바랭이', bg: '#66BB6A', face: '#C8E6C9', accent: '#2E7D32', expr: 'wink', headDeco: 'cabbage' },
-  { id: 3, name: '명아주', bg: '#FFCA28', face: '#FFF9C4', accent: '#F57F17', expr: 'surprised', headDeco: 'corn' },
-  { id: 4, name: '냉이', bg: '#7E57C2', face: '#D1C4E9', accent: '#4527A0', expr: 'angry', headDeco: 'grape' },
+  { id: 0, name: '민들레', bg: '#FFD54F', face: '#FFF9C4', accent: '#F9A825', expr: 'happy', headDeco: 'dandelion' },
+  { id: 1, name: '쇠비름', bg: '#EF5350', face: '#FFCDD2', accent: '#C62828', expr: 'laugh', headDeco: 'purslane' },
+  { id: 2, name: '바랭이', bg: '#66BB6A', face: '#C8E6C9', accent: '#2E7D32', expr: 'wink', headDeco: 'crabgrass' },
+  { id: 3, name: '명아주', bg: '#7E57C2', face: '#D1C4E9', accent: '#4527A0', expr: 'surprised', headDeco: 'goosefoot' },
 ];
 
 // ============ CELL ============
@@ -355,60 +354,47 @@ class Cell {
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
     ctx.beginPath(); ctx.ellipse(x - faceR * 0.1, y - faceR * 0.35, faceR * 0.45, faceR * 0.2, -0.15, 0, Math.PI * 2); ctx.fill();
 
-    // --- 머리 장식 (채소/과일 특징) ---
+    // --- 머리 장식 (잡초 특징!) ---
     const deco = t.headDeco;
-    if (deco === 'tomato') {
-      // 토마토 꼭지 + 잎
-      ctx.strokeStyle = '#388E3C'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(x, y - faceR * 0.82); ctx.lineTo(x, y - faceR * 1.05); ctx.stroke();
-      ctx.fillStyle = '#4CAF50';
-      [[-0.4, -0.9, -0.5], [0, -0.95, 0], [0.4, -0.9, 0.5]].forEach(([dx, dy, rot]) => {
-        ctx.save(); ctx.translate(x + faceR * dx, y + faceR * dy); ctx.rotate(rot);
-        ctx.beginPath(); ctx.ellipse(0, -2, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
+    if (deco === 'dandelion') {
+      // 민들레 — 홀씨 솜털 뭉치
+      ctx.fillStyle = '#FFF';
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        ctx.beginPath(); ctx.arc(x + Math.cos(a) * faceR * 0.35, y - faceR * 0.95 + Math.sin(a) * faceR * 0.3, 3, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = '#FFFDE7';
+      ctx.beginPath(); ctx.arc(x, y - faceR * 0.95, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#8BC34A'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(x, y - faceR * 0.82); ctx.lineTo(x, y - faceR * 0.6); ctx.stroke();
+    } else if (deco === 'purslane') {
+      // 쇠비름 — 두꺼운 둥근 잎 여러 개
+      ctx.fillStyle = '#E53935';
+      [[-0.3, -0.85, 5], [0, -1.0, 6], [0.3, -0.85, 5], [-0.15, -0.95, 4], [0.15, -0.95, 4]].forEach(([dx, dy, sz]) => {
+        ctx.beginPath(); ctx.ellipse(x + faceR * dx, y + faceR * dy, sz, sz * 0.7, 0, 0, Math.PI * 2); ctx.fill();
+      });
+      ctx.strokeStyle = '#8D6E63'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x, y - faceR * 0.8); ctx.lineTo(x, y - faceR * 0.6); ctx.stroke();
+    } else if (deco === 'crabgrass') {
+      // 바랭이 — 뾰족한 풀잎 여러 개
+      ctx.strokeStyle = '#2E7D32'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+      [[-0.3, -0.4], [-0.15, -0.2], [0, 0], [0.15, -0.2], [0.3, -0.4]].forEach(([dx, rot]) => {
+        ctx.save(); ctx.translate(x + faceR * dx, y - faceR * 0.8); ctx.rotate(rot);
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -faceR * 0.4); ctx.stroke();
         ctx.restore();
       });
-    } else if (deco === 'carrot') {
-      // 당근 잎사귀 (풍성하게)
-      ctx.fillStyle = '#66BB6A';
-      [[-0.25, -0.95, -0.3], [0, -1.1, 0], [0.25, -0.95, 0.3], [-0.12, -1.05, -0.15], [0.12, -1.05, 0.15]].forEach(([dx, dy, rot]) => {
+    } else if (deco === 'goosefoot') {
+      // 명아주 — 다이아몬드 잎 + 보라 가루
+      ctx.fillStyle = '#6A1B9A';
+      [[-0.25, -0.9, -0.3], [0, -1.05, 0], [0.25, -0.9, 0.3]].forEach(([dx, dy, rot]) => {
         ctx.save(); ctx.translate(x + faceR * dx, y + faceR * dy); ctx.rotate(rot);
-        ctx.beginPath(); ctx.ellipse(0, -5, 3, 7, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
+        ctx.beginPath();
+        ctx.moveTo(0, -6); ctx.lineTo(5, 0); ctx.lineTo(0, 6); ctx.lineTo(-5, 0); ctx.closePath();
+        ctx.fill(); ctx.restore();
       });
-    } else if (deco === 'cabbage') {
-      // 양배추 겹잎 (머리 위에 작은 잎들)
-      ctx.fillStyle = '#A5D6A7';
-      ctx.beginPath(); ctx.ellipse(x, y - faceR * 0.85, faceR * 0.35, faceR * 0.15, 0, Math.PI, 2 * Math.PI); ctx.fill();
-      ctx.fillStyle = '#81C784';
-      ctx.beginPath(); ctx.ellipse(x, y - faceR * 0.9, faceR * 0.25, faceR * 0.12, 0, Math.PI, 2 * Math.PI); ctx.fill();
-      ctx.fillStyle = '#66BB6A';
-      ctx.beginPath(); ctx.ellipse(x, y - faceR * 0.95, faceR * 0.15, faceR * 0.08, 0, Math.PI, 2 * Math.PI); ctx.fill();
-    } else if (deco === 'corn') {
-      // 옥수수 껍질 (양쪽으로 벌어진 잎)
-      ctx.fillStyle = '#C8E6C9';
-      ctx.save(); ctx.translate(x - faceR * 0.5, y - faceR * 0.7); ctx.rotate(-0.4);
-      ctx.beginPath(); ctx.ellipse(0, 0, 4, 10, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
-      ctx.save(); ctx.translate(x + faceR * 0.5, y - faceR * 0.7); ctx.rotate(0.4);
-      ctx.beginPath(); ctx.ellipse(0, 0, 4, 10, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
-      // 옥수수 알갱이 장식 (이마에)
-      ctx.fillStyle = '#FBC02D';
-      [[-0.15, -0.6], [0.15, -0.6], [0, -0.7]].forEach(([dx, dy]) => {
-        ctx.beginPath(); ctx.arc(x + faceR * dx, y + faceR * dy, 2, 0, Math.PI * 2); ctx.fill();
-      });
-    } else if (deco === 'grape') {
-      // 포도 알갱이 (머리 위에 작은 원들)
-      ctx.fillStyle = '#9575CD';
-      [[-0.2, -0.95], [0.2, -0.95], [0, -1.1], [-0.1, -1.0], [0.1, -1.0]].forEach(([dx, dy]) => {
-        ctx.beginPath(); ctx.arc(x + faceR * dx, y + faceR * dy, 4, 0, Math.PI * 2); ctx.fill();
-      });
-      // 줄기
-      ctx.strokeStyle = '#4CAF50'; ctx.lineWidth = 2; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(x, y - faceR * 1.1); ctx.lineTo(x + 3, y - faceR * 1.25); ctx.stroke();
-      // 잎
-      ctx.fillStyle = '#66BB6A';
-      ctx.beginPath(); ctx.ellipse(x + 5, y - faceR * 1.2, 5, 3, 0.3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(206,147,216,0.5)';
+      ctx.beginPath(); ctx.arc(x + 3, y - faceR * 1.05, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x - 4, y - faceR * 0.92, 1.5, 0, Math.PI * 2); ctx.fill();
     }
 
     // --- 폭탄이면 다르게 그리기 ---
