@@ -287,6 +287,8 @@ class Cell {
     this.selected = false;
     this.shake = 0;
     this.isBomb = false;
+    this.blinkTimer = Math.random() * 3; // 눈 깜빡임 타이머 (3초 주기)
+    this._blink = false;
   }
 
   update(dt) {
@@ -308,16 +310,36 @@ class Cell {
       this.y = this.targetY;
     }
     if (this.shake > 0) this.shake *= 0.85;
+
+    // 눈 깜빡임
+    this.blinkTimer -= dt;
+    if (this.blinkTimer <= 0 && !this._blink) {
+      this._blink = true;
+      this._blinkDur = 0;
+    }
+    if (this._blink) {
+      if (this._blinkDur === undefined) this._blinkDur = 0;
+      this._blinkDur += dt;
+      if (this._blinkDur >= 0.15) {
+        this._blink = false;
+        this._blinkDur = 0;
+        this.blinkTimer = 2.5 + Math.random() * 2; // 다음 깜빡임까지 2.5~4.5초
+      }
+    }
   }
 
   draw() {
     if (this.scale <= 0.01) this.scale = 0.1; // 안 보이는 셀 방지
     ctx.save();
 
-    const sc = this.scale * (1 + Math.sin(this.wobble) * 0.02);
+    // idle: 상하 흔들림 (sin 기반, 2~3px)
+    const idleY = Math.sin(this.wobble) * 2.5;
+    // selected: 통통 바운스 (1.1~1.15)
+    const selBounce = this.selected ? 1.1 + Math.sin(Date.now() * 0.008) * 0.05 : 1;
+    const sc = this.scale * (1 + Math.sin(this.wobble) * 0.02) * selBounce;
     const r = this.r * sc;
     const sx = (Math.random() - 0.5) * this.shake;
-    const x = this.x + sx, y = this.y;
+    const x = this.x + sx, y = this.y + idleY;
 
     const t = this.type;
 
@@ -352,17 +374,21 @@ class Cell {
     ctx.fillStyle = faceGrad;
     ctx.beginPath(); ctx.arc(x, y, faceR * 0.91, 0, Math.PI * 2); ctx.fill();
 
-    // 얇은 어두운 테두리 (stroke)
+    // 하단 어두운 반원 (입체 아랫부분)
+    ctx.fillStyle = t.accent + '44';
+    ctx.beginPath(); ctx.arc(x, y + faceR * 0.08, faceR * 0.93, 0.1 * Math.PI, 0.9 * Math.PI); ctx.fill();
+
+    // 두꺼운 외곽 테두리 (2px)
     ctx.strokeStyle = t.accent;
-    ctx.lineWidth = Math.max(1, faceR * 0.04);
+    ctx.lineWidth = Math.max(2, faceR * 0.07);
     ctx.beginPath(); ctx.arc(x, y, faceR, 0, Math.PI * 2); ctx.stroke();
 
     // 글로시 반사 (상단 - 더 크고 밝게)
-    ctx.fillStyle = 'rgba(255,255,255,0.35)';
-    ctx.beginPath(); ctx.ellipse(x - faceR * 0.08, y - faceR * 0.38, faceR * 0.5, faceR * 0.22, -0.12, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.beginPath(); ctx.ellipse(x - faceR * 0.05, y - faceR * 0.35, faceR * 0.55, faceR * 0.28, -0.1, 0, Math.PI * 2); ctx.fill();
     // 작은 보조 하이라이트
-    ctx.fillStyle = 'rgba(255,255,255,0.18)';
-    ctx.beginPath(); ctx.ellipse(x + faceR * 0.25, y - faceR * 0.2, faceR * 0.12, faceR * 0.08, 0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.beginPath(); ctx.ellipse(x + faceR * 0.25, y - faceR * 0.18, faceR * 0.15, faceR * 0.1, 0.3, 0, Math.PI * 2); ctx.fill();
 
     // --- 머리 장식 (잡초 특징!) ---
     const deco = t.headDeco;
@@ -454,7 +480,7 @@ class Cell {
     }
 
     // --- 표정 ---
-    drawFace(t.expr, x, y, faceR);
+    drawFace(t.expr, x, y, faceR, this._blink);
 
     ctx.restore();
   }
@@ -465,30 +491,48 @@ class Cell {
 }
 
 // ============ FACES (귀엽고 세련되게) ============
-function drawFace(type, x, y, r) {
+function drawFace(type, x, y, r, blink) {
   const s = r * 0.9;
   const eyeY = y - s * 0.06;
   const eyeSpacing = s * 0.24;
   const eyeR = s * 0.17;
 
-  // 공통: 큰 둥근 눈 (캐릭터감)
-  if (type === 'angry') {
-    // 흰자
+  // 헬퍼: 눈 감은 모양 (가로 선)
+  function drawClosedEye(ex, ey, eR) {
+    ctx.strokeStyle = '#2D2D2D'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(ex - eR * 0.7, ey);
+    ctx.quadraticCurveTo(ex, ey + eR * 0.3, ex + eR * 0.7, ey);
+    ctx.stroke();
+  }
+
+  // 헬퍼: 열린 눈 (흰자 + 눈동자 + 하이라이트)
+  function drawOpenEye(ex, ey, eR, pupilScale, pupilOY) {
     ctx.fillStyle = '#FFF';
-    ctx.beginPath(); ctx.arc(x - eyeSpacing, eyeY, eyeR, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(x + eyeSpacing, eyeY, eyeR, 0, Math.PI * 2); ctx.fill();
-    // 눈동자
+    ctx.beginPath(); ctx.arc(ex, ey, eR, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#2D2D2D';
-    ctx.beginPath(); ctx.arc(x - eyeSpacing, eyeY + 1, eyeR * 0.6, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(x + eyeSpacing, eyeY + 1, eyeR * 0.6, 0, Math.PI * 2); ctx.fill();
-    // 큰 하이라이트
+    ctx.beginPath(); ctx.arc(ex, ey + (pupilOY || 0), eR * (pupilScale || 0.55), 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#FFF';
-    ctx.beginPath(); ctx.arc(x - eyeSpacing + 1.5, eyeY - 1.5, eyeR * 0.32, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(x + eyeSpacing + 1.5, eyeY - 1.5, eyeR * 0.32, 0, Math.PI * 2); ctx.fill();
-    // 작은 보조 하이라이트
+    ctx.beginPath(); ctx.arc(ex + 1.5, ey - 2, eR * 0.32, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.beginPath(); ctx.arc(x - eyeSpacing - 1, eyeY + 2, eyeR * 0.12, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(x + eyeSpacing - 1, eyeY + 2, eyeR * 0.12, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ex - 1, ey + 1, eR * 0.12, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // 공통 볼터치 (모든 표정에 적용)
+  function drawCheeks() {
+    ctx.fillStyle = 'rgba(255,160,180,0.30)';
+    ctx.beginPath(); ctx.arc(x - s * 0.32, y + s * 0.1, s * 0.1, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + s * 0.32, y + s * 0.1, s * 0.1, 0, Math.PI * 2); ctx.fill();
+  }
+
+  if (type === 'angry') {
+    if (blink) {
+      drawClosedEye(x - eyeSpacing, eyeY, eyeR);
+      drawClosedEye(x + eyeSpacing, eyeY, eyeR);
+    } else {
+      drawOpenEye(x - eyeSpacing, eyeY, eyeR, 0.6, 1);
+      drawOpenEye(x + eyeSpacing, eyeY, eyeR, 0.6, 1);
+    }
     // 화난 눈썹
     ctx.strokeStyle = '#4A4A4A'; ctx.lineWidth = 1.5; ctx.lineCap = 'round';
     ctx.beginPath();
@@ -500,71 +544,48 @@ function drawFace(type, x, y, r) {
     // 입 (뾰로통)
     ctx.strokeStyle = '#4A4A4A'; ctx.lineWidth = 1.2;
     ctx.beginPath(); ctx.arc(x, y + s * 0.18, s * 0.08, 1.1 * Math.PI, 1.9 * Math.PI); ctx.stroke();
+    drawCheeks();
   } else if (type === 'happy') {
-    // 흰자
-    ctx.fillStyle = '#FFF';
-    ctx.beginPath(); ctx.arc(x - eyeSpacing, eyeY, eyeR, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(x + eyeSpacing, eyeY, eyeR, 0, Math.PI * 2); ctx.fill();
-    // 눈동자 (위를 봄 - 행복)
-    ctx.fillStyle = '#2D2D2D';
-    ctx.beginPath(); ctx.arc(x - eyeSpacing, eyeY - 1, eyeR * 0.55, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(x + eyeSpacing, eyeY - 1, eyeR * 0.55, 0, Math.PI * 2); ctx.fill();
-    // 큰 하이라이트 (반짝이는 느낌)
-    ctx.fillStyle = '#FFF';
-    ctx.beginPath(); ctx.arc(x - eyeSpacing + 1.5, eyeY - 2.5, eyeR * 0.32, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(x + eyeSpacing + 1.5, eyeY - 2.5, eyeR * 0.32, 0, Math.PI * 2); ctx.fill();
-    // 보조 하이라이트
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.beginPath(); ctx.arc(x - eyeSpacing - 1, eyeY + 1, eyeR * 0.12, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(x + eyeSpacing - 1, eyeY + 1, eyeR * 0.12, 0, Math.PI * 2); ctx.fill();
+    if (blink) {
+      drawClosedEye(x - eyeSpacing, eyeY, eyeR);
+      drawClosedEye(x + eyeSpacing, eyeY, eyeR);
+    } else {
+      drawOpenEye(x - eyeSpacing, eyeY, eyeR, 0.55, -1);
+      drawOpenEye(x + eyeSpacing, eyeY, eyeR, 0.55, -1);
+    }
     // 웃는 입
     ctx.strokeStyle = '#4A4A4A'; ctx.lineWidth = 1.2; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.arc(x, y + s * 0.12, s * 0.1, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke();
-    // 볼터치 (더 부드럽게)
-    ctx.fillStyle = 'rgba(255,160,160,0.28)';
-    ctx.beginPath(); ctx.arc(x - s * 0.32, y + s * 0.1, s * 0.09, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(x + s * 0.32, y + s * 0.1, s * 0.09, 0, Math.PI * 2); ctx.fill();
+    drawCheeks();
   } else if (type === 'surprised') {
-    // 흰자 (더 크게)
-    ctx.fillStyle = '#FFF';
-    ctx.beginPath(); ctx.arc(x - eyeSpacing, eyeY, eyeR * 1.1, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(x + eyeSpacing, eyeY, eyeR * 1.1, 0, Math.PI * 2); ctx.fill();
-    // 눈동자 (작게 - 놀란 느낌)
-    ctx.fillStyle = '#2D2D2D';
-    ctx.beginPath(); ctx.arc(x - eyeSpacing, eyeY, eyeR * 0.45, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(x + eyeSpacing, eyeY, eyeR * 0.45, 0, Math.PI * 2); ctx.fill();
-    // 큰 하이라이트
-    ctx.fillStyle = '#FFF';
-    ctx.beginPath(); ctx.arc(x - eyeSpacing + 1.5, eyeY - 2, eyeR * 0.3, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(x + eyeSpacing + 1.5, eyeY - 2, eyeR * 0.3, 0, Math.PI * 2); ctx.fill();
-    // 보조 하이라이트
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.beginPath(); ctx.arc(x - eyeSpacing - 1, eyeY + 1.5, eyeR * 0.12, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(x + eyeSpacing - 1, eyeY + 1.5, eyeR * 0.12, 0, Math.PI * 2); ctx.fill();
+    if (blink) {
+      drawClosedEye(x - eyeSpacing, eyeY, eyeR * 1.1);
+      drawClosedEye(x + eyeSpacing, eyeY, eyeR * 1.1);
+    } else {
+      drawOpenEye(x - eyeSpacing, eyeY, eyeR * 1.1, 0.4, 0);
+      drawOpenEye(x + eyeSpacing, eyeY, eyeR * 1.1, 0.4, 0);
+    }
     // O 입
     ctx.fillStyle = '#4A4A4A';
     ctx.beginPath(); ctx.ellipse(x, y + s * 0.18, s * 0.06, s * 0.08, 0, 0, Math.PI * 2); ctx.fill();
+    drawCheeks();
   } else if (type === 'wink') {
-    // 왼쪽 눈 (정상)
-    ctx.fillStyle = '#FFF';
-    ctx.beginPath(); ctx.arc(x - eyeSpacing, eyeY, eyeR, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#2D2D2D';
-    ctx.beginPath(); ctx.arc(x - eyeSpacing, eyeY, eyeR * 0.55, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#FFF';
-    ctx.beginPath(); ctx.arc(x - eyeSpacing + 1.5, eyeY - 2, eyeR * 0.32, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.beginPath(); ctx.arc(x - eyeSpacing - 1, eyeY + 1.5, eyeR * 0.12, 0, Math.PI * 2); ctx.fill();
-    // 오른쪽 눈 (윙크 - 반달)
-    ctx.strokeStyle = '#2D2D2D'; ctx.lineWidth = 2; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.arc(x + eyeSpacing, eyeY, eyeR * 0.6, 0.05 * Math.PI, 0.95 * Math.PI); ctx.stroke();
+    if (blink) {
+      drawClosedEye(x - eyeSpacing, eyeY, eyeR);
+      drawClosedEye(x + eyeSpacing, eyeY, eyeR);
+    } else {
+      // 왼쪽 눈 (정상)
+      drawOpenEye(x - eyeSpacing, eyeY, eyeR, 0.55, 0);
+      // 오른쪽 눈 (윙크 - 반달)
+      ctx.strokeStyle = '#2D2D2D'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(x + eyeSpacing, eyeY, eyeR * 0.6, 0.05 * Math.PI, 0.95 * Math.PI); ctx.stroke();
+    }
     // 웃는 입
     ctx.strokeStyle = '#4A4A4A'; ctx.lineWidth = 1.2;
     ctx.beginPath(); ctx.arc(x, y + s * 0.12, s * 0.1, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke();
-    // 볼터치
-    ctx.fillStyle = 'rgba(255,160,160,0.28)';
-    ctx.beginPath(); ctx.arc(x + s * 0.32, y + s * 0.08, s * 0.08, 0, Math.PI * 2); ctx.fill();
+    drawCheeks();
   } else if (type === 'laugh') {
-    // 반달 눈 (둘 다 - 크게 웃음)
+    // laugh는 이미 눈 감은 스타일이므로 blink 무관
     ctx.fillStyle = '#2D2D2D';
     ctx.beginPath(); ctx.arc(x - eyeSpacing, eyeY, eyeR * 0.7, Math.PI, 2 * Math.PI); ctx.fill();
     ctx.beginPath(); ctx.arc(x + eyeSpacing, eyeY, eyeR * 0.7, Math.PI, 2 * Math.PI); ctx.fill();
@@ -573,10 +594,7 @@ function drawFace(type, x, y, r) {
     ctx.beginPath(); ctx.arc(x, y + s * 0.14, s * 0.12, 0, Math.PI); ctx.fill();
     ctx.fillStyle = '#F48FB1';
     ctx.beginPath(); ctx.ellipse(x, y + s * 0.2, s * 0.06, s * 0.03, 0, 0, Math.PI * 2); ctx.fill();
-    // 볼터치 (더 부드럽게)
-    ctx.fillStyle = 'rgba(255,160,160,0.3)';
-    ctx.beginPath(); ctx.arc(x - s * 0.3, y + s * 0.1, s * 0.09, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(x + s * 0.3, y + s * 0.1, s * 0.09, 0, Math.PI * 2); ctx.fill();
+    drawCheeks();
   }
 }
 
@@ -884,20 +902,56 @@ function shuffleGrid() {
 }
 
 // ============ PARTICLES ============
+const BURST_EXTRA_COLORS = ['#FFD700', '#FFF', '#FF80AB', '#FFEB3B', '#E1F5FE'];
+
 function burst(x, y, color, n = 8) {
-  for (let i = 0; i < n; i++) {
-    const a = (i / n) * Math.PI * 2 + Math.random() * 0.5, sp = 80 + Math.random() * 180;
-    particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1, size: 2 + Math.random() * 4, color });
+  const total = Math.ceil(n * 1.5); // 파티클 수 50% 증가
+  for (let i = 0; i < total; i++) {
+    const a = (i / total) * Math.PI * 2 + Math.random() * 0.5, sp = 80 + Math.random() * 200;
+    // 30% 확률로 밝은 보조 색상 사용
+    const c = Math.random() < 0.3 ? BURST_EXTRA_COLORS[Math.floor(Math.random() * BURST_EXTRA_COLORS.length)] : color;
+    // 20% 확률로 별 모양 파티클
+    const isStar = Math.random() < 0.2;
+    particles.push({
+      x, y,
+      vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+      life: 1, size: 2 + Math.random() * 4.5,
+      color: c, star: isStar,
+      rot: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 8
+    });
   }
 }
 function updateParticles(dt) {
-  particles.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.96; p.vy *= 0.96; p.life -= dt * 2.5; });
+  particles.forEach(p => {
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.vx *= 0.96; p.vy *= 0.96;
+    p.life -= dt * 2.5;
+    if (p.rot !== undefined) p.rot += (p.rotSpeed || 0) * dt;
+  });
   particles = particles.filter(p => p.life > 0);
 }
+
+function drawStar(cx, cy, r, points) {
+  ctx.beginPath();
+  for (let i = 0; i < points * 2; i++) {
+    const a = (i / (points * 2)) * Math.PI * 2 - Math.PI / 2;
+    const rad = i % 2 === 0 ? r : r * 0.4;
+    if (i === 0) ctx.moveTo(cx + Math.cos(a) * rad, cy + Math.sin(a) * rad);
+    else ctx.lineTo(cx + Math.cos(a) * rad, cy + Math.sin(a) * rad);
+  }
+  ctx.closePath(); ctx.fill();
+}
+
 function drawParticles() {
   particles.forEach(p => {
     ctx.save(); ctx.globalAlpha = p.life; ctx.fillStyle = p.color;
-    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+    if (p.star) {
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot || 0);
+      drawStar(0, 0, p.size * 1.2, 5);
+    } else {
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+    }
     ctx.restore();
   });
 }
@@ -1137,11 +1191,14 @@ function onUp(e) {
 function drawSwipeLine() {
   if (swipePath.length < 2) return;
   ctx.save();
-  ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-  ctx.lineWidth = 4;
+
+  // 글로우 효과 라인 (밝은 노란색)
+  ctx.strokeStyle = 'rgba(255,240,100,0.5)';
+  ctx.lineWidth = 12;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-  ctx.setLineDash([8, 4]);
+  ctx.shadowColor = '#FFD700';
+  ctx.shadowBlur = 18;
   ctx.beginPath();
   swipePath.forEach(({ c, r }, i) => {
     const cell = grid[c][r];
@@ -1150,10 +1207,36 @@ function drawSwipeLine() {
     else ctx.lineTo(cell.x, cell.y);
   });
   ctx.stroke();
-  ctx.setLineDash([]);
+
+  // 메인 라인 (밝은 노랑, 더 두꺼움)
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = 'rgba(255,255,180,0.9)';
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  swipePath.forEach(({ c, r }, i) => {
+    const cell = grid[c][r];
+    if (!cell) return;
+    if (i === 0) ctx.moveTo(cell.x, cell.y);
+    else ctx.lineTo(cell.x, cell.y);
+  });
+  ctx.stroke();
+
+  // 중심 하이라이트 라인
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  swipePath.forEach(({ c, r }, i) => {
+    const cell = grid[c][r];
+    if (!cell) return;
+    if (i === 0) ctx.moveTo(cell.x, cell.y);
+    else ctx.lineTo(cell.x, cell.y);
+  });
+  ctx.stroke();
 
   // 경로 위 숫자 표시
-  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur = 4;
+  ctx.fillStyle = '#FFF';
   ctx.font = 'bold 16px Jua, sans-serif';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const last = swipePath[swipePath.length - 1];
@@ -1166,6 +1249,20 @@ function drawSwipeLine() {
 
 // ============ BACKGROUND (캐시) ============
 let bgDecos = [], bgDecoCache = [], bgCache = null, bgCacheKey = '';
+// 배경 반짝이 (별/스파클)
+let bgSparkles = [];
+function initBgSparkles() {
+  bgSparkles = [];
+  for (let i = 0; i < 13; i++) {
+    bgSparkles.push({
+      x: Math.random() * 400,
+      y: Math.random() * 300,
+      phase: Math.random() * Math.PI * 2,
+      speed: 0.3 + Math.random() * 0.5,
+      size: 1 + Math.random() * 2,
+    });
+  }
+}
 function invalidateBgCache() { bgCacheKey = ''; }
 
 function initBgDecos() {
@@ -1235,6 +1332,27 @@ function drawBG() {
   bgDecos.forEach((d, i) => {
     ctx.save(); ctx.globalAlpha = 0.3;
     ctx.drawImage(bgDecoCache[i], d.x + Math.sin(t * d.speed + d.wobble) * 4 - d.size, d.y + Math.cos(t * d.speed * 0.7 + d.wobble) * 3 - d.size);
+    ctx.restore();
+  });
+
+  // 배경 반짝이 효과 (작은 별/점이 떠다니며 반짝)
+  if (!bgSparkles.length) initBgSparkles();
+  const W = canvas.width, H = canvas.height;
+  bgSparkles.forEach(sp => {
+    const sx = (sp.x % W + Math.sin(t * sp.speed + sp.phase) * 15) % W;
+    const sy = (sp.y % H + Math.cos(t * sp.speed * 0.8 + sp.phase) * 10) % H;
+    const alpha = 0.3 + Math.sin(t * 2 + sp.phase) * 0.3; // 0.0 ~ 0.6 반짝
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, alpha);
+    ctx.fillStyle = '#FFF';
+    // 십자 반짝이 모양
+    const sz = sp.size;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy - sz * 2); ctx.lineTo(sx + sz * 0.5, sy - sz * 0.5);
+    ctx.lineTo(sx + sz * 2, sy); ctx.lineTo(sx + sz * 0.5, sy + sz * 0.5);
+    ctx.lineTo(sx, sy + sz * 2); ctx.lineTo(sx - sz * 0.5, sy + sz * 0.5);
+    ctx.lineTo(sx - sz * 2, sy); ctx.lineTo(sx - sz * 0.5, sy - sz * 0.5);
+    ctx.closePath(); ctx.fill();
     ctx.restore();
   });
 }
