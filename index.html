@@ -28,7 +28,7 @@
     }
 
     body {
-      background: #66BB6A;
+      background: #FFFFFF;
       overflow: hidden;
       touch-action: none;
       user-select: none;
@@ -118,41 +118,62 @@
     }
 
     #start-screen {
-      background: linear-gradient(180deg, #2D6A4F 0%, #52B788 50%, #95D5B2 100%);
+      background: #FFFFFF;
+      justify-content: flex-start;
+      padding-top: 60px;
     }
     .game-title {
-      font-size: 80px;
-      margin-bottom: 8px;
-      animation: titleBounce 2s ease-in-out infinite;
-      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+      font-size: 64px;
+      margin-bottom: 4px;
+      animation: titleBounce 2.5s ease-in-out infinite;
     }
     @keyframes titleBounce {
       0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-10px); }
+      50% { transform: translateY(-8px); }
     }
     .game-title-text {
-      font-size: 36px;
+      font-size: 28px;
       font-weight: 900;
-      color: white;
+      color: var(--toss-black);
+      margin-bottom: 24px;
+      letter-spacing: 2px;
+    }
+    /* 플레이 방법 카드 */
+    .how-to-play {
+      background: var(--toss-gray50);
+      border-radius: 20px;
+      padding: 20px 24px;
+      width: min(320px, 85%);
+      margin-bottom: 24px;
+    }
+    .how-to-play-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--toss-gray700);
       margin-bottom: 12px;
-      letter-spacing: 4px;
-      text-shadow: 0 4px 12px rgba(0,0,0,0.35);
     }
-    .game-subtitle {
-      font-size: 15px;
-      color: rgba(255,255,255,0.7);
-      margin-bottom: 48px;
+    .how-to-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 0;
+    }
+    .how-to-row:not(:last-child) {
+      border-bottom: 1px solid var(--toss-gray100);
+    }
+    .how-to-icon {
+      font-size: 24px;
+      width: 36px;
       text-align: center;
-      line-height: 1.5;
+      flex-shrink: 0;
     }
-    .game-subtitle span {
-      display: inline-block;
-      background: rgba(255,255,255,0.2);
-      padding: 4px 12px;
-      border-radius: 12px;
-      margin: 2px;
+    .how-to-text {
       font-size: 13px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      color: var(--toss-gray700);
+      line-height: 1.4;
+    }
+    .how-to-text strong {
+      color: var(--toss-black);
     }
 
     .btn-primary {
@@ -303,13 +324,17 @@
     #fever-overlay.active { opacity: 1; }
 
     #start-ranking {
-      margin-top: 24px;
-      background: rgba(0,0,0,0.2);
-      backdrop-filter: blur(8px);
-      border-radius: 16px;
-      padding: 12px 20px;
-      width: min(280px, 80%);
+      margin-top: 16px;
+      background: var(--toss-gray50);
+      border-radius: 20px;
+      padding: 16px 24px;
+      width: min(320px, 85%);
       pointer-events: none;
+    }
+    .btn-primary {
+      width: min(320px, 85%);
+      padding: 16px 0;
+      border-radius: 16px;
     }
   </style>
 </head>
@@ -327,15 +352,25 @@
 
   <!-- Start Screen -->
   <div id="start-screen" class="screen-overlay">
-    <div class="game-title">🧑‍🌾</div>
+    <div class="game-title">🌿</div>
     <div class="game-title-text">뽑아라! 잡초</div>
-    <div class="game-subtitle">
-      도시에서 시골로 온 초보 농부!<br>
-      밭에 잡초가 미친듯이 자란다!<br><br>
-      <span>👆 같은 잡초 3개+ 쓱~ 긋기</span>
-      <span>🧨 폭탄잡초 → 빠르게 연타!</span>
-      <span>💥 못 막으면 밭이 폭발!</span>
+
+    <div class="how-to-play">
+      <div class="how-to-play-title">플레이 방법</div>
+      <div class="how-to-row">
+        <div class="how-to-icon">👆</div>
+        <div class="how-to-text"><strong>같은 잡초 3개 이상</strong>을 손가락으로 쓱~ 그어서 뽑으세요!</div>
+      </div>
+      <div class="how-to-row">
+        <div class="how-to-icon">🧨</div>
+        <div class="how-to-text"><strong>폭탄잡초</strong>가 나타나면 빠르게 3번 연타! 못 막으면 게임 오버!</div>
+      </div>
+      <div class="how-to-row">
+        <div class="how-to-icon">⏱</div>
+        <div class="how-to-text">제한시간 <strong>30초!</strong> 많이 그을수록 시간 보너스!</div>
+      </div>
     </div>
+
     <button class="btn-primary" id="btn-start">시작하기</button>
     <div id="start-ranking"></div>
   </div>

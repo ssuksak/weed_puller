@@ -1635,17 +1635,18 @@ async function loadRankings() {
 (async function loadStartRanking() {
   const el = document.getElementById('start-ranking');
   if (!el) return;
-  el.innerHTML = '<div style="color:rgba(255,255,255,0.5);font-size:12px">로딩 중...</div>';
+  el.innerHTML = '<div style="color:#8B95A1;font-size:12px">랭킹 로딩 중...</div>';
   const rankings = await getTopRankings(5);
   if (!rankings.length) {
-    el.innerHTML = '<div style="color:rgba(255,255,255,0.6);font-size:13px">첫 번째 기록을 남겨보세요! 🌱</div>';
+    el.innerHTML = '<div style="color:#8B95A1;font-size:13px;text-align:center">첫 번째 기록을 남겨보세요! 🌱</div>';
     return;
   }
-  el.innerHTML = '<div style="color:rgba(255,255,255,0.9);font-size:13px;font-weight:700;margin-bottom:6px">🏆 TOP 5</div>' +
+  el.innerHTML = '<div style="font-size:14px;font-weight:700;color:#191F28;margin-bottom:8px">🏆 랭킹</div>' +
     rankings.map((r, i) => {
-      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
-      return `<div style="display:flex;justify-content:space-between;color:rgba(255,255,255,0.85);font-size:12px;padding:2px 0">`+
-        `<span>${medal} ${r.nickname}</span><span>${r.score}점</span></div>`;
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `<span style="color:#8B95A1;font-size:12px;width:20px;display:inline-block;text-align:center">${i+1}</span>`;
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;${i < rankings.length - 1 ? 'border-bottom:1px solid #E5E8EB;' : ''}${i < 3 ? 'font-weight:700;' : ''}">`+
+        `<span style="color:#191F28;font-size:14px">${medal} ${r.nickname}</span>`+
+        `<span style="color:#3182F6;font-size:14px;font-weight:700">${r.score.toLocaleString()}점</span></div>`;
     }).join('');
 })();
 
