@@ -1,7 +1,41 @@
 // =============================================
-// 🌿 잡초 뽑기 v4 — 매치 퍼즐 (애니팡 스타일)
-// 같은 잡초 2개+ 탭 → 한꺼번에 뽑힘 → 낙하 → 연쇄!
+// 🧑‍🌾 뽑아라! 잡초 — 매치 퍼즐
 // =============================================
+
+// ============ SUPABASE RANKING ============
+const SUPABASE_URL = 'https://puwthqzbounohrdmacgo.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1d3RocXpib3Vub2hyZG1hY2dvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMjA2MzMsImV4cCI6MjA5MDg5NjYzM30.AxUjNNTnLv2xVNC_UMFE3o0x0-s_tFJnRcMr7mBNOy0';
+
+async function submitScore(nickname, score, maxCombo, surviveTime) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/weed_puller_rankings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Prefer': 'return=minimal',
+      },
+      body: JSON.stringify({
+        nickname: nickname.slice(0, 20),
+        score,
+        max_combo: maxCombo,
+        survive_time: surviveTime,
+      }),
+    });
+    return res.ok;
+  } catch (e) { return false; }
+}
+
+async function getTopRankings(limit = 10) {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/weed_puller_rankings?select=nickname,score,max_combo,survive_time,created_at&order=score.desc&limit=${limit}`,
+      { headers: { 'apikey': SUPABASE_KEY } }
+    );
+    return res.ok ? await res.json() : [];
+  } catch (e) { return []; }
+}
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -1543,15 +1577,56 @@ function endGame() {
     document.querySelector('.result-label').textContent = '점';
     const extraEl = document.getElementById('result-extra');
     if (extraEl) {
-      extraEl.innerHTML = `<div style="margin-bottom:12px;font-size:13px;color:#8B95A1">최고기록: ${highScore}점</div>` +
-        `<button id="btn-share" style="background:none;border:1px solid #E5E8EB;border-radius:12px;padding:10px 0;width:100%;font-size:14px;font-weight:600;color:#4E5968;cursor:pointer;margin-bottom:8px">📤 점수 공유하기</button>`;
+      const savedName = localStorage.getItem('weedpuller_name') || '';
+      extraEl.innerHTML =
+        `<div style="margin-bottom:8px;font-size:13px;color:#8B95A1">최고기록: ${highScore}점</div>` +
+        `<div style="display:flex;gap:6px;margin-bottom:10px">` +
+          `<input id="rank-name" type="text" maxlength="20" placeholder="닉네임 입력" value="${savedName}" style="flex:1;padding:10px 12px;border:1.5px solid #E5E8EB;border-radius:12px;font-size:14px;font-family:Jua,sans-serif;outline:none;text-align:center">` +
+          `<button id="btn-rank" style="background:#3182F6;color:#FFF;border:none;border-radius:12px;padding:10px 16px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:Jua,sans-serif">등록</button>` +
+        `</div>` +
+        `<div id="rank-msg" style="font-size:12px;color:#8B95A1;margin-bottom:8px"></div>` +
+        `<div id="rank-list" style="font-size:12px;color:#4E5968;margin-bottom:10px;max-height:120px;overflow-y:auto"></div>` +
+        `<button id="btn-share" style="background:none;border:1px solid #E5E8EB;border-radius:12px;padding:8px 0;width:100%;font-size:13px;font-weight:600;color:#8B95A1;cursor:pointer">📤 공유</button>`;
+
+      // 등록 버튼
+      document.getElementById('btn-rank')?.addEventListener('click', async () => {
+        const name = document.getElementById('rank-name')?.value?.trim();
+        if (!name) { document.getElementById('rank-msg').textContent = '닉네임을 입력해주세요!'; return; }
+        localStorage.setItem('weedpuller_name', name);
+        document.getElementById('btn-rank').textContent = '...';
+        const ok = await submitScore(name, score, maxCombo, Math.floor(elapsed));
+        document.getElementById('rank-msg').textContent = ok ? '✅ 등록 완료!' : '❌ 등록 실패';
+        document.getElementById('btn-rank').textContent = '등록';
+        if (ok) loadRankings();
+      });
+
+      // 공유 버튼
       document.getElementById('btn-share')?.addEventListener('click', () => {
         const text = `🧑‍🌾 뽑아라! 잡초\n⭐ ${score}점 · 최대콤보 x${maxCombo}\n\n나도 도시농부 도전! 👇\nhttps://ssuksak.github.io/weed_puller/`;
         if (navigator.share) navigator.share({ text });
-        else if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => showFB(canvas.width / 2 - 40, canvas.height * 0.5, '📋 복사됨!', '#4CAF50', 20));
+        else if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => {
+          document.getElementById('rank-msg').textContent = '📋 복사됨!';
+        });
       });
+
+      // 랭킹 로드
+      loadRankings();
     }
   }, 500);
+}
+
+async function loadRankings() {
+  const listEl = document.getElementById('rank-list');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="color:#aaa">로딩 중...</div>';
+  const rankings = await getTopRankings(10);
+  if (!rankings.length) { listEl.innerHTML = '<div style="color:#aaa">아직 기록이 없어요!</div>'; return; }
+  listEl.innerHTML = '<div style="font-weight:700;margin-bottom:4px;color:#3182F6">🏆 TOP 10</div>' +
+    rankings.map((r, i) => {
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+      return `<div style="display:flex;justify-content:space-between;padding:2px 0;${i < 3 ? 'font-weight:700' : ''}">`+
+        `<span>${medal} ${r.nickname}</span><span>${r.score}점</span></div>`;
+    }).join('');
 }
 
 requestAnimationFrame(loop);
