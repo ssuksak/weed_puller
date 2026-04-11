@@ -1590,8 +1590,10 @@ function endGame() {
 
       // 등록 버튼
       document.getElementById('btn-rank')?.addEventListener('click', async () => {
-        const name = document.getElementById('rank-name')?.value?.trim();
+        let name = document.getElementById('rank-name')?.value?.trim();
         if (!name) { document.getElementById('rank-msg').textContent = '닉네임을 입력해주세요!'; return; }
+        name = name.replace(/[^가-힣a-zA-Z0-9 ]/g, '').slice(0, 20); // sanitize
+        if (!name) { document.getElementById('rank-msg').textContent = '한글/영문/숫자만 가능!'; return; }
         localStorage.setItem('weedpuller_name', name);
         document.getElementById('btn-rank').textContent = '...';
         const ok = await submitScore(name, score, maxCombo, Math.floor(elapsed));
