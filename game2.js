@@ -296,10 +296,10 @@ resize();
 
 // ============ WEED TYPES ============
 const TYPES = [
-  { id: 0, name: '민들레', bg: '#FFE082', face: '#FFFDE7', accent: '#F5B041', expr: 'happy', headDeco: 'dandelion' },
-  { id: 1, name: '쇠비름', bg: '#F48FB1', face: '#FCE4EC', accent: '#D4527B', expr: 'laugh', headDeco: 'purslane' },
-  { id: 2, name: '바랭이', bg: '#81C784', face: '#E8F5E9', accent: '#4A9E5C', expr: 'wink', headDeco: 'crabgrass' },
-  { id: 3, name: '명아주', bg: '#B39DDB', face: '#EDE7F6', accent: '#7E57B5', expr: 'surprised', headDeco: 'goosefoot' },
+  { id: 0, name: '민들레', bg: '#B5D8B8', face: '#E2F0E4', accent: '#6BA37A', expr: 'happy', headDeco: 'dandelion' },
+  { id: 1, name: '쇠비름', bg: '#E8A8A0', face: '#F8E0DC', accent: '#C06060', expr: 'laugh', headDeco: 'purslane' },
+  { id: 2, name: '바랭이', bg: '#88C0A0', face: '#D0E8D8', accent: '#4D8868', expr: 'wink', headDeco: 'crabgrass' },
+  { id: 3, name: '명아주', bg: '#A8A0C8', face: '#E4E0F0', accent: '#706098', expr: 'surprised', headDeco: 'goosefoot' },
 ];
 
 // ============ CELL ============
@@ -383,46 +383,54 @@ class Cell {
       ctx.beginPath(); ctx.arc(x, y, r * 1.1, 0, Math.PI * 2); ctx.fill();
     }
 
-    // --- 큰 동글 얼굴 (셀 꽉 채움) ---
+    // --- 잡초 몸체 ---
     const faceR = r * 0.88;
+    const w = this.wobble;
 
-    // 부드러운 그림자 (더 넓고 흐리게)
+    // 작은 잎사귀 (몸체 양옆에 삐져나옴)
+    ctx.fillStyle = t.accent + 'AA';
+    for (let li = 0; li < 3; li++) {
+      const la = (li / 3) * Math.PI * 2 + w * 0.1 + 1;
+      const lx = x + Math.cos(la) * faceR * 0.85;
+      const ly = y + Math.sin(la) * faceR * 0.7;
+      ctx.save(); ctx.translate(lx, ly); ctx.rotate(la);
+      ctx.beginPath(); ctx.ellipse(0, 0, faceR * 0.2, faceR * 0.08, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+
+    // 부드러운 그림자
     ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.18)';
-    ctx.shadowBlur = faceR * 0.4;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = faceR * 0.12;
+    ctx.shadowColor = 'rgba(0,0,0,0.12)';
+    ctx.shadowBlur = faceR * 0.35;
+    ctx.shadowOffsetY = faceR * 0.1;
     ctx.fillStyle = t.accent;
     ctx.beginPath(); ctx.arc(x, y, faceR, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
 
-    // 메인 얼굴 (약간 더 크게 - 부드러운 느낌)
+    // 메인 몸체
     ctx.fillStyle = t.bg;
     ctx.beginPath(); ctx.arc(x, y, faceR * 0.93, 0, Math.PI * 2); ctx.fill();
 
-    // 얼굴 밝은 부분 (상단 그라데이션 - 더 넓고 부드럽게)
-    const faceGrad = ctx.createRadialGradient(x - faceR * 0.2, y - faceR * 0.35, faceR * 0.05, x, y, faceR);
+    // 밝은 그라데이션 (상단)
+    const faceGrad = ctx.createRadialGradient(x - faceR * 0.15, y - faceR * 0.3, faceR * 0.05, x, y, faceR);
     faceGrad.addColorStop(0, t.face);
-    faceGrad.addColorStop(0.45, t.bg);
+    faceGrad.addColorStop(0.5, t.bg);
     faceGrad.addColorStop(1, t.bg);
     ctx.fillStyle = faceGrad;
     ctx.beginPath(); ctx.arc(x, y, faceR * 0.91, 0, Math.PI * 2); ctx.fill();
 
-    // 하단 어두운 반원 (입체 아랫부분)
-    ctx.fillStyle = t.accent + '44';
-    ctx.beginPath(); ctx.arc(x, y + faceR * 0.08, faceR * 0.93, 0.1 * Math.PI, 0.9 * Math.PI); ctx.fill();
+    // 하단 입체감
+    ctx.fillStyle = t.accent + '30';
+    ctx.beginPath(); ctx.arc(x, y + faceR * 0.1, faceR * 0.9, 0.1 * Math.PI, 0.9 * Math.PI); ctx.fill();
 
-    // 두꺼운 외곽 테두리 (2px)
-    ctx.strokeStyle = t.accent;
-    ctx.lineWidth = Math.max(2, faceR * 0.07);
+    // 외곽선 (토스 느낌 — 얇고 세련되게)
+    ctx.strokeStyle = t.accent + 'CC';
+    ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(x, y, faceR, 0, Math.PI * 2); ctx.stroke();
 
-    // 글로시 반사 (상단 - 더 크고 밝게)
-    ctx.fillStyle = 'rgba(255,255,255,0.45)';
-    ctx.beginPath(); ctx.ellipse(x - faceR * 0.05, y - faceR * 0.35, faceR * 0.55, faceR * 0.28, -0.1, 0, Math.PI * 2); ctx.fill();
-    // 작은 보조 하이라이트
-    ctx.fillStyle = 'rgba(255,255,255,0.22)';
-    ctx.beginPath(); ctx.ellipse(x + faceR * 0.25, y - faceR * 0.18, faceR * 0.15, faceR * 0.1, 0.3, 0, Math.PI * 2); ctx.fill();
+    // 글로시 반사
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.beginPath(); ctx.ellipse(x - faceR * 0.08, y - faceR * 0.32, faceR * 0.45, faceR * 0.2, -0.1, 0, Math.PI * 2); ctx.fill();
 
     // --- 머리 장식 (잡초 특징!) ---
     const deco = t.headDeco;
@@ -1347,12 +1355,12 @@ function drawBG() {
     const bw = 6, px = 10, py = 6;
     const bx = gridX - px, by = gridY - py, bW = cellW * COLS + px * 2, bH = cellH * ROWS + py * 2;
     const borderR = 16;
-    bg.fillStyle = 'rgba(0,0,0,0.12)'; bgRR(bg, bx - bw + 2, by - bw + 3, bW + bw * 2, bH + bw * 2, borderR);
-    bg.fillStyle = feverMode ? '#FF7043' : '#A1887F'; bgRR(bg, bx - bw, by - bw, bW + bw * 2, bH + bw * 2, borderR);
+    bg.fillStyle = 'rgba(0,0,0,0.06)'; bgRR(bg, bx - bw + 2, by - bw + 3, bW + bw * 2, bH + bw * 2, borderR);
+    bg.fillStyle = feverMode ? '#E8A088' : '#C8B8A8'; bgRR(bg, bx - bw, by - bw, bW + bw * 2, bH + bw * 2, borderR);
     const dirt = bg.createLinearGradient(bx, by, bx, by + bH);
-    dirt.addColorStop(0, feverMode ? '#D7CCC8' : '#D7CCC8');
-    dirt.addColorStop(0.5, feverMode ? '#BCAAA4' : '#C4A882');
-    dirt.addColorStop(1, feverMode ? '#A1887F' : '#A1887F');
+    dirt.addColorStop(0, feverMode ? '#E8DDD0' : '#EDE4D8');
+    dirt.addColorStop(0.5, feverMode ? '#D4C4B0' : '#DDD0C0');
+    dirt.addColorStop(1, feverMode ? '#C0B0A0' : '#D0C4B4');
     bg.fillStyle = dirt; bgRR(bg, bx, by, bW, bH, borderR - 3);
     // 이랑
     for (let r = 0; r < ROWS; r++) {
