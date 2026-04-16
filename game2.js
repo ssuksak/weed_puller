@@ -1,6 +1,7 @@
-// =============================================
-// 🧑‍🌾 뽑아라! 잡초 — 매치 퍼즐
-// =============================================
+/**
+ * 뽑아라! 잡초 — 매치 퍼즐 게임
+ * 같은 잡초를 스와이프로 연결해 뽑는 캐주얼 퍼즐
+ */
 
 // ============ SUPABASE RANKING ============
 const SUPABASE_URL = 'https://puwthqzbounohrdmacgo.supabase.co';
@@ -210,6 +211,27 @@ function drawPauseOverlay() {
   ctx.restore();
 }
 
+function drawTutorialOverlay() {
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const cx = canvas.width / 2, cy = canvas.height / 2;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  // 손가락 스와이프 애니메이션
+  const t = Date.now() / 600;
+  const fingerX = cx + Math.sin(t) * 60;
+  ctx.font = '48px sans-serif';
+  ctx.fillStyle = 'white';
+  ctx.fillText('👆', fingerX, cy - 30);
+  // 안내 텍스트
+  ctx.font = 'bold 22px Jua, sans-serif';
+  ctx.fillText('같은 잡초를 쓱~ 연결하세요!', cx, cy + 40);
+  ctx.font = '16px Jua, sans-serif';
+  ctx.fillStyle = '#aaa';
+  ctx.fillText('터치하여 시작', cx, cy + 80);
+  ctx.restore();
+}
+
 function sfx(type, extra) {
   if (!audioCtx) return;
   if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -315,6 +337,7 @@ let screenShake = 0, shakeX = 0, shakeY = 0;
 let animating = false;
 let animTimeout = 0;
 let paused = false;
+let showTutorial = false;
 
 // 폭탄 시스템 — 그리드 안에 섞여 내려옴
 let bombCount = 0;
@@ -1213,6 +1236,18 @@ function clearSwipeHighlight() {
 }
 
 function onDown(e) {
+  if (showTutorial && gameRunning) {
+    e.preventDefault?.();
+    showTutorial = false;
+    localStorage.setItem('weedpuller_tutorial', '1');
+    startBGM();
+    timerInterval = setInterval(() => {
+      timeLeft--; updateHUD();
+      if (timeLeft <= 10 && timeLeft > 0) sfx('countdown');
+      if (timeLeft <= 0) endGame();
+    }, 1000);
+    return;
+  }
   if (paused && gameRunning) {
     e.preventDefault?.();
     resumeGame();
@@ -1487,7 +1522,7 @@ function updateHUD() {
   const timerEl = document.getElementById('hud-timer');
   if (timeLeft <= 5) { timerEl.style.color = '#FF1744'; timerEl.style.fontSize = '20px'; }
   else { timerEl.style.color = ''; timerEl.style.fontSize = ''; }
-  if (score > highScore) document.getElementById('hud-score').style.color = '#FFD700';
+  if (score > highScore) document.getElementById('hud-score').style.color = 'var(--farm-yellow)';
   const le = document.getElementById('hud-level');
   le.textContent = `🔥 콤보 ${combo}`;
   le.classList.remove('hidden');
@@ -1514,6 +1549,15 @@ function loop(ts) {
       }
     }
     drawPauseOverlay();
+    requestAnimationFrame(loop);
+    return;
+  }
+
+  if (showTutorial && gameRunning) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawBG();
+    for (let c = 0; c < COLS; c++) { if (!grid[c]) continue; for (let r = 0; r < grid[c].length; r++) { if (grid[c][r]) grid[c][r].draw(); } }
+    drawTutorialOverlay();
     requestAnimationFrame(loop);
     return;
   }
@@ -1630,8 +1674,13 @@ function startCountdown() {
 }
 
 function startGame() {
-  gameRunning = true; timeLeft = 30; resize(); startBGM(); updateHUD();
+  gameRunning = true; timeLeft = 30; resize(); updateHUD();
   clearInterval(timerInterval);
+  if (!localStorage.getItem('weedpuller_tutorial')) {
+    showTutorial = true; // 타이머·BGM은 터치 후 시작
+    return;
+  }
+  startBGM();
   timerInterval = setInterval(() => {
     timeLeft--; updateHUD();
     if (timeLeft <= 10 && timeLeft > 0) sfx('countdown');
@@ -1647,6 +1696,7 @@ function endGame() {
   document.getElementById('hud-timer').style.color = '';
   document.getElementById('hud-score').style.color = '';
   document.getElementById('fever-overlay').classList.remove('active');
+  document.querySelectorAll('.feedback-pop').forEach(el => el.remove());
 
   isNewRecord = score > highScore;
   if (isNewRecord) {
