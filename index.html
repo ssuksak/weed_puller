@@ -11,20 +11,21 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --toss-blue: #3182F6;
-      --toss-red: #F04452;
-      --toss-green: #2DC76D;
-      --toss-yellow: #FFC34D;
-      --toss-bg: #F5F6F8;
-      --toss-white: #FFFFFF;
-      --toss-black: #191F28;
-      --toss-gray50: #F2F4F6;
-      --toss-gray100: #E5E8EB;
-      --toss-gray300: #B0B8C1;
-      --toss-gray500: #8B95A1;
-      --toss-gray700: #4E5968;
-      --toss-gray900: #191F28;
-      --radius: 16px;
+      --farm-green: #4A7C59;
+      --farm-green-light: #6B9E7A;
+      --farm-brown: #8B6914;
+      --farm-red: #C4453A;
+      --farm-yellow: #E8A735;
+      --farm-cream: #FFF8ED;
+      --farm-white: #FFFFFF;
+      --farm-black: #2C2416;
+      --farm-gray50: #F7F3ED;
+      --farm-gray100: #E8E0D4;
+      --farm-gray300: #B5A999;
+      --farm-gray500: #8A7E6E;
+      --farm-gray700: #5C5244;
+      --farm-gray900: #2C2416;
+      --radius: 12px;
     }
 
     body {
@@ -50,22 +51,20 @@
       pointer-events: none;
     }
     .hud-box {
-      background: rgba(0,0,0,0.35);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      border-radius: 24px;
+      background: rgba(255,248,237,0.92);
+      border-radius: 12px;
       padding: 8px 16px;
-      color: white;
+      color: var(--farm-black);
       font-weight: 700;
       font-size: 17px;
       display: flex;
       align-items: center;
       gap: 6px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.18);
-      border: 1px solid rgba(255,255,255,0.15);
+      box-shadow: 0 2px 6px rgba(44,36,22,0.12);
+      border: 1px solid var(--farm-gray100);
     }
     #hud-score { font-size: 20px; }
-    #hud-timer { color: var(--toss-yellow); }
+    #hud-timer { color: var(--farm-brown); }
     #hud-combo {
       position: absolute;
       top: 56px;
@@ -73,11 +72,11 @@
       transform: translateX(-50%);
       font-size: 28px;
       font-weight: 900;
-      color: var(--toss-yellow);
-      text-shadow: 0 2px 8px rgba(0,0,0,0.5);
-      background: rgba(0,0,0,0.5);
+      color: var(--farm-yellow);
+      text-shadow: 0 1px 3px rgba(44,36,22,0.4);
+      background: rgba(44,36,22,0.7);
       padding: 6px 20px;
-      border-radius: 24px;
+      border-radius: 12px;
       opacity: 0;
       transition: all 0.2s;
     }
@@ -92,11 +91,10 @@
       transform: translateX(-50%);
       font-size: 14px;
       font-weight: 700;
-      color: rgba(255,255,255,0.8);
-      background: rgba(0,0,0,0.3);
-      backdrop-filter: blur(8px);
+      color: rgba(255,248,237,0.9);
+      background: rgba(44,36,22,0.6);
       padding: 6px 16px;
-      border-radius: 20px;
+      border-radius: 10px;
       pointer-events: none;
     }
     @keyframes comboPop {
@@ -134,14 +132,15 @@
     .game-title-text {
       font-size: 28px;
       font-weight: 900;
-      color: var(--toss-black);
+      color: var(--farm-black);
       margin-bottom: 24px;
-      letter-spacing: 2px;
+      letter-spacing: 0;
     }
     /* 플레이 방법 카드 */
     .how-to-play {
-      background: var(--toss-gray50);
-      border-radius: 20px;
+      background: var(--farm-cream);
+      border: 1.5px solid var(--farm-green-light);
+      border-radius: 14px;
       padding: 20px 24px;
       width: min(320px, 85%);
       margin-bottom: 24px;
@@ -149,7 +148,7 @@
     .how-to-play-title {
       font-size: 14px;
       font-weight: 700;
-      color: var(--toss-gray700);
+      color: var(--farm-green);
       margin-bottom: 12px;
     }
     .how-to-row {
@@ -159,7 +158,7 @@
       padding: 8px 0;
     }
     .how-to-row:not(:last-child) {
-      border-bottom: 1px solid var(--toss-gray100);
+      border-bottom: 1px solid var(--farm-gray100);
     }
     .how-to-icon {
       font-size: 24px;
@@ -169,65 +168,63 @@
     }
     .how-to-text {
       font-size: 13px;
-      color: var(--toss-gray700);
+      color: var(--farm-gray700);
       line-height: 1.4;
     }
     .how-to-text strong {
-      color: var(--toss-black);
+      color: var(--farm-black);
     }
 
     .btn-primary {
-      background: var(--toss-blue);
+      background: var(--farm-green);
       color: white;
       border: none;
-      border-radius: 20px;
+      border-radius: 12px;
       padding: 18px 64px;
       font-size: 20px;
       font-weight: 700;
       cursor: pointer;
       pointer-events: auto;
       transition: transform 0.1s, background 0.1s;
-      letter-spacing: -0.5px;
-      box-shadow: 0 6px 20px rgba(49, 130, 246, 0.3), 0 2px 6px rgba(0,0,0,0.08);
+      letter-spacing: 0;
+      box-shadow: 0 2px 8px rgba(74,124,89,0.2);
     }
     .btn-primary:active {
       transform: scale(0.96);
-      background: #1B6AE0;
-      box-shadow: 0 2px 8px rgba(49, 130, 246, 0.3);
+      background: #3A6349;
+      box-shadow: 0 1px 4px rgba(74,124,89,0.2);
     }
 
     /* Result screen */
     #result-screen {
-      background: rgba(0,0,0,0.7);
-      backdrop-filter: blur(8px);
+      background: rgba(44,36,22,0.65);
     }
     .result-card {
-      background: var(--toss-white);
-      border-radius: 28px;
+      background: var(--farm-white);
+      border-radius: 16px;
       padding: 36px 32px;
       text-align: center;
       width: min(85%, 340px);
-      box-shadow: 0 24px 64px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06);
+      box-shadow: 0 8px 24px rgba(44,36,22,0.18);
     }
     .result-emoji { font-size: 64px; margin-bottom: 8px; }
     .result-title {
       font-size: 22px;
       font-weight: 900;
-      color: var(--toss-black);
+      color: var(--farm-black);
       margin-bottom: 24px;
-      letter-spacing: -1px;
+      letter-spacing: 0;
     }
     .result-score {
       font-size: 60px;
       font-weight: 900;
-      color: var(--toss-blue);
+      color: var(--farm-green);
       margin-bottom: 4px;
-      letter-spacing: -1px;
-      text-shadow: 0 2px 8px rgba(49, 130, 246, 0.15);
+      letter-spacing: 0;
     }
     .result-label {
       font-size: 14px;
-      color: var(--toss-gray500);
+      color: var(--farm-gray500);
       margin-bottom: 20px;
     }
     .result-stats {
@@ -235,8 +232,8 @@
       justify-content: space-around;
       margin-bottom: 28px;
       padding: 16px 0;
-      background: #F5F6F8;
-      border-radius: 16px;
+      background: var(--farm-cream);
+      border-radius: 10px;
     }
     .stat-item {
       text-align: center;
@@ -244,18 +241,18 @@
     .stat-value {
       font-size: 20px;
       font-weight: 900;
-      color: var(--toss-black);
+      color: var(--farm-black);
     }
     .stat-label {
       font-size: 12px;
-      color: var(--toss-gray500);
+      color: var(--farm-gray500);
       margin-top: 4px;
     }
     .btn-retry {
-      background: var(--toss-blue);
+      background: var(--farm-green);
       color: white;
       border: none;
-      border-radius: 16px;
+      border-radius: 12px;
       padding: 14px 0;
       font-size: 17px;
       font-weight: 700;
@@ -264,10 +261,10 @@
       width: 100%;
       margin-top: 4px;
       transition: transform 0.1s;
-      letter-spacing: -0.5px;
-      box-shadow: 0 4px 12px rgba(49, 130, 246, 0.3);
+      letter-spacing: 0;
+      box-shadow: 0 2px 6px rgba(74,124,89,0.18);
     }
-    .btn-retry:active { transform: scale(0.97); box-shadow: 0 2px 6px rgba(49, 130, 246, 0.25); }
+    .btn-retry:active { transform: scale(0.97); box-shadow: 0 1px 3px rgba(74,124,89,0.15); }
 
     /* Feedback */
     .feedback-pop {
@@ -319,24 +316,24 @@
       z-index: 5;
       opacity: 0;
       transition: opacity 0.3s;
-      box-shadow: inset 0 0 80px rgba(255, 170, 0, 0.4);
+      box-shadow: inset 0 0 60px rgba(232,167,53,0.35);
     }
     #fever-overlay.active { opacity: 1; }
 
     #start-ranking {
       margin-top: 20px;
       background: #FFF;
-      border: 2px solid var(--toss-blue);
-      border-radius: 20px;
+      border: 1.5px solid var(--farm-green-light);
+      border-radius: 14px;
       padding: 16px 24px;
       width: min(320px, 85%);
       pointer-events: none;
-      box-shadow: 0 4px 16px rgba(49,130,246,0.12);
+      box-shadow: 0 2px 8px rgba(74,124,89,0.08);
     }
     .btn-primary {
       width: min(320px, 85%);
       padding: 16px 0;
-      border-radius: 16px;
+      border-radius: 12px;
     }
   </style>
 </head>

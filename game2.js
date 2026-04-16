@@ -151,6 +151,65 @@ function scheduleBGM() {
 }
 function stopBGM() { bgmPlaying = false; clearTimeout(bgmInterval); }
 
+// ============ PAUSE SYSTEM ============
+function pauseGame() {
+  if (!gameRunning || paused || gameOver) return;
+  paused = true;
+  clearInterval(timerInterval);
+  stopBGM();
+}
+
+function resumeGame() {
+  if (!gameRunning || !paused || gameOver) return;
+  paused = false;
+  lastTime = 0; // 다음 프레임에서 dt 리셋
+  startBGM();
+  // 타이머 재시작
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    if (paused) return;
+    timeLeft--; updateHUD();
+    if (timeLeft <= 10 && timeLeft > 0) sfx('countdown');
+    if (timeLeft <= 0) endGame();
+  }, 1000);
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    pauseGame();
+  }
+});
+
+function drawPauseOverlay() {
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // 중앙 박스
+  const bW = 240, bH = 140;
+  const bX = (canvas.width - bW) / 2, bY = (canvas.height - bH) / 2;
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  ctx.beginPath();
+  const br = 20;
+  ctx.moveTo(bX + br, bY); ctx.lineTo(bX + bW - br, bY);
+  ctx.quadraticCurveTo(bX + bW, bY, bX + bW, bY + br);
+  ctx.lineTo(bX + bW, bY + bH - br);
+  ctx.quadraticCurveTo(bX + bW, bY + bH, bX + bW - br, bY + bH);
+  ctx.lineTo(bX + br, bY + bH);
+  ctx.quadraticCurveTo(bX, bY + bH, bX, bY + bH - br);
+  ctx.lineTo(bX, bY + br);
+  ctx.quadraticCurveTo(bX, bY, bX + br, bY);
+  ctx.closePath(); ctx.fill();
+  // 텍스트
+  ctx.fillStyle = '#191F28';
+  ctx.font = 'bold 28px Jua, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('⏸ 일시정지', canvas.width / 2, bY + bH * 0.35);
+  ctx.fillStyle = '#8B95A1';
+  ctx.font = '16px Jua, sans-serif';
+  ctx.fillText('터치하면 재개', canvas.width / 2, bY + bH * 0.7);
+  ctx.restore();
+}
+
 function sfx(type, extra) {
   if (!audioCtx) return;
   if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -255,6 +314,7 @@ let feverMode = false, feverTimer = 0;
 let screenShake = 0, shakeX = 0, shakeY = 0;
 let animating = false;
 let animTimeout = 0;
+let paused = false;
 
 // 폭탄 시스템 — 그리드 안에 섞여 내려옴
 let bombCount = 0;
@@ -1089,14 +1149,22 @@ function updateBombs(dt) {
         cell.shake = Math.sin(Date.now() * 0.03) * (3 - cell._bombTimer) * 2;
       }
       if (cell._bombTimer <= 0) {
-        // 폭발! 게임 오버!
+        // 폭발! 시간 -7초 패널티
         sfx('miss');
         burst(cell.x, cell.y, '#FF1744', 20);
         burst(cell.x, cell.y, '#FF9100', 15);
         triggerShake(15);
-        showFB(cell.x, cell.y - 30, '💥 펑!', '#FF1744', 36);
+        showFB(cell.x, cell.y - 30, '💥 -7초!', '#FF1744', 36);
         cell.isBomb = false;
-        setTimeout(() => endGame(), 500);
+        cell._dead = true;
+        needsRebuild = true;
+        timeLeft -= 7;
+        updateHUD();
+        if (timeLeft <= 0) {
+          timeLeft = 0;
+          updateHUD();
+          setTimeout(() => endGame(), 500);
+        }
       }
     }
   }
@@ -1145,6 +1213,11 @@ function clearSwipeHighlight() {
 }
 
 function onDown(e) {
+  if (paused && gameRunning) {
+    e.preventDefault?.();
+    resumeGame();
+    return;
+  }
   if (!gameRunning) return;
   e.preventDefault?.();
 
@@ -1425,8 +1498,25 @@ let lastTime = 0;
 
 function loop(ts) {
   if (!lastTime) lastTime = ts;
-  const dt = Math.min((ts - lastTime) / 1000, 0.05);
+  let dt = Math.min((ts - lastTime) / 1000, 0.05);
   lastTime = ts;
+
+  // 일시정지 처리
+  if (paused && gameRunning) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawBG();
+    // 셀 그리기 (정지 상태)
+    for (let c = 0; c < COLS; c++) {
+      if (!grid[c]) continue;
+      for (let r = 0; r < grid[c].length; r++) {
+        if (!grid[c][r]) continue;
+        grid[c][r].draw();
+      }
+    }
+    drawPauseOverlay();
+    requestAnimationFrame(loop);
+    return;
+  }
 
   if (screenShake > 0) {
     shakeX = (Math.random() - 0.5) * screenShake;
@@ -1514,7 +1604,7 @@ function startCountdown() {
   swiping = false; clearSwipeHighlight();
   particles = []; score = 0; combo = 0; maxCombo = 0; chainLevel = 0;
   pullCount = 0; elapsed = 0; feverMode = false; gameOver = false;
-  animating = false; timeLeft = 30; isNewRecord = false; currentChain = 0;
+  animating = false; paused = false; timeLeft = 30; isNewRecord = false; currentChain = 0;
   bombCount = 0; swipeCount = 0; nextBombAt = 3; needsRebuild = false;
   document.getElementById('hud-score').style.color = '';
   document.getElementById('fever-overlay').classList.remove('active');
