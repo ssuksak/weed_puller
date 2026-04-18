@@ -45,6 +45,21 @@ const ctx = canvas.getContext('2d');
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
 let audioCtx = null, bgmGain = null, bgmPlaying = false, bgmInterval = null, bgmNextTime = 0, bgmIdx = 0;
 let bgmBassIdx = 0, bgmBassNext = 0, bgmDrumNext = 0, bgmDrumBeat = 0;
+let soundEnabled = localStorage.getItem('weedpuller_sound') !== 'off';
+
+// 사운드 토글 버튼
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('btn-sound');
+  if (btn) {
+    btn.textContent = soundEnabled ? '🔊 사운드 ON' : '🔇 사운드 OFF';
+    btn.addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      localStorage.setItem('weedpuller_sound', soundEnabled ? 'on' : 'off');
+      btn.textContent = soundEnabled ? '🔊 사운드 ON' : '🔇 사운드 OFF';
+      if (!soundEnabled && bgmPlaying) stopBGM();
+    });
+  }
+});
 
 function initAudio() {
   if (!audioCtx) {
@@ -83,7 +98,7 @@ const BGM_BASS = [
 ];
 
 function startBGM() {
-  if (bgmPlaying) return;
+  if (bgmPlaying || !soundEnabled) return;
   if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
   bgmPlaying = true; bgmIdx = 0; bgmBassIdx = 0; bgmDrumBeat = 0;
   bgmNextTime = bgmBassNext = bgmDrumNext = audioCtx.currentTime;
@@ -233,7 +248,7 @@ function drawTutorialOverlay() {
 }
 
 function sfx(type, extra) {
-  if (!audioCtx) return;
+  if (!audioCtx || !soundEnabled) return;
   if (audioCtx.state === 'suspended') audioCtx.resume();
   const now = audioCtx.currentTime;
   const mk = () => { const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); return { o, g }; };
