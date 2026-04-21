@@ -29,33 +29,91 @@ async function initUserHash() {
 }
 initUserHash();
 
-async function submitScore(nickname, score, maxCombo, surviveTime) {
+async function submitScore(nickname, scoreVal, maxComboVal, surviveTime) {
+  if (!userHash) {
+    // 해시 없으면 단순 INSERT
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/weed_puller_rankings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({
+          nickname: nickname.slice(0, 20),
+          score: scoreVal,
+          max_combo: maxComboVal,
+          survive_time: surviveTime,
+        }),
+      });
+      return res.ok;
+    } catch (e) { return false; }
+  }
+
+  // 해시 있으면 → 기존 기록 확인 → 최고점만 유지
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/weed_puller_rankings`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Prefer': 'return=minimal',
-      },
-      body: JSON.stringify({
-        nickname: nickname.slice(0, 20),
-        score,
-        max_combo: maxCombo,
-        survive_time: surviveTime,
-        user_hash: userHash || null,
-      }),
-    });
-    return res.ok;
+    // 1) 기존 기록 조회
+    const existing = await fetch(
+      `${SUPABASE_URL}/rest/v1/weed_puller_rankings?user_hash=eq.${userHash}&select=id,score`,
+      { headers: { 'apikey': SUPABASE_KEY } }
+    ).then(r => r.json());
+
+    if (existing.length > 0 && existing[0].score >= scoreVal) {
+      // 기존 점수가 더 높으면 업데이트 안 함
+      return true;
+    }
+
+    if (existing.length > 0) {
+      // 2) 기존 기록 있고 새 점수가 더 높으면 → UPDATE
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/weed_puller_rankings?user_hash=eq.${userHash}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Prefer': 'return=minimal',
+          },
+          body: JSON.stringify({
+            nickname: nickname.slice(0, 20),
+            score: scoreVal,
+            max_combo: maxComboVal,
+            survive_time: surviveTime,
+          }),
+        }
+      );
+      return res.ok;
+    } else {
+      // 3) 기존 기록 없으면 → INSERT
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/weed_puller_rankings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({
+          nickname: nickname.slice(0, 20),
+          score: scoreVal,
+          max_combo: maxComboVal,
+          survive_time: surviveTime,
+          user_hash: userHash,
+        }),
+      });
+      return res.ok;
+    }
   } catch (e) { return false; }
 }
 
-// 자동 점수 저장 (닉네임 없이)
-async function autoSubmitScore(score, maxCombo, surviveTime) {
+// 자동 점수 저장
+async function autoSubmitScore(scoreVal, maxComboVal, surviveTime) {
   if (!userHash) return false;
   const savedName = localStorage.getItem('weedpuller_name') || userHash.slice(0, 8);
-  return submitScore(savedName, score, maxCombo, surviveTime);
+  return submitScore(savedName, scoreVal, maxComboVal, surviveTime);
 }
 
 async function getTopRankings(limit = 10) {
