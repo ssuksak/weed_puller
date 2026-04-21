@@ -1877,9 +1877,9 @@ async function loadRankings() {
   const listEl = document.getElementById('rank-list');
   if (!listEl) return;
   listEl.innerHTML = '<div style="color:#aaa">로딩 중...</div>';
-  const rankings = await getTopRankings(10);
+  const rankings = await getTopRankings(20);
   if (!rankings.length) { listEl.innerHTML = '<div style="color:#aaa">아직 기록이 없어요!</div>'; return; }
-  listEl.innerHTML = '<div style="font-weight:700;margin-bottom:4px;color:#3182F6">🏆 TOP 10</div>' +
+  listEl.innerHTML = '<div style="font-weight:700;margin-bottom:4px;color:#4A7C59">🏆 TOP 20</div>' +
     rankings.map((r, i) => {
       const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
       return `<div style="display:flex;justify-content:space-between;padding:2px 0;${i < 3 ? 'font-weight:700' : ''}">`+
@@ -1892,18 +1892,19 @@ async function loadRankings() {
   const el = document.getElementById('start-ranking');
   if (!el) return;
   el.innerHTML = '<div style="color:#8B95A1;font-size:12px">랭킹 로딩 중...</div>';
-  const rankings = await getTopRankings(5);
+  const rankings = await getTopRankings(20);
   if (!rankings.length) {
     el.innerHTML = '<div style="color:#8B95A1;font-size:13px;text-align:center">첫 번째 기록을 남겨보세요! 🌱</div>';
     return;
   }
-  el.innerHTML = '<div style="font-size:14px;font-weight:700;color:#191F28;margin-bottom:8px">🏆 랭킹</div>' +
+  el.innerHTML = '<div style="font-size:14px;font-weight:700;color:#191F28;margin-bottom:8px">🏆 TOP 20</div>' +
+    `<div style="max-height:240px;overflow-y:auto;pointer-events:auto">` +
     rankings.map((r, i) => {
-      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `<span style="color:#8B95A1;font-size:12px;width:20px;display:inline-block;text-align:center">${i+1}</span>`;
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `<span style="color:#8B95A1;font-size:12px;width:22px;display:inline-block;text-align:center">${i+1}</span>`;
       return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;${i < rankings.length - 1 ? 'border-bottom:1px solid #E5E8EB;' : ''}${i < 3 ? 'font-weight:700;' : ''}">`+
-        `<span style="color:#191F28;font-size:14px">${medal} ${r.nickname}</span>`+
-        `<span style="color:#3182F6;font-size:14px;font-weight:700">${r.score.toLocaleString()}점</span></div>`;
-    }).join('');
+        `<span style="color:#191F28;font-size:13px">${medal} ${r.nickname}</span>`+
+        `<span style="color:#4A7C59;font-size:13px;font-weight:700">${r.score.toLocaleString()}점</span></div>`;
+    }).join('') + `</div>`;
 })();
 
 requestAnimationFrame(loop);
