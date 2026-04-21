@@ -5,7 +5,7 @@ export default defineConfig({
   brand: {
     displayName: "뽑아라 잡초",
     primaryColor: "#4A7C59",
-    icon: "/icon_600x600.png",
+    icon: "https://ssuksak.github.io/weed_puller/icon_600x600.png",
   },
   web: {
     host: "localhost",
