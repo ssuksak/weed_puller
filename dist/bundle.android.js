@@ -9,7 +9,7 @@ var global = typeof globalThis !== 'undefined' ? globalThis : typeof global !== 
     host: ''
   };
   global.__appsInToss = {
-    deploymentId: "019db05d-4385-7ad2-b6a0-63945997853b",
+    deploymentId: "019db07b-0a12-72fe-8326-faa978fe3580",
     brandDisplayName: "\uBF51\uC544\uB77C \uC7A1\uCD08",
     brandPrimaryColor: "#4A7C59",
     brandIcon: "https://ssuksak.github.io/weed_puller/icon_600x600.png",
@@ -132,7 +132,7 @@ if (global.__MICRO_FRONTEND__ == null) {
     host: ''
   };
   global.__appsInToss = {
-    deploymentId: "019db05d-4385-7ad2-b6a0-63945997853b",
+    deploymentId: "019db07b-0a12-72fe-8326-faa978fe3580",
     brandDisplayName: "\uBF51\uC544\uB77C \uC7A1\uCD08",
     brandPrimaryColor: "#4A7C59",
     brandIcon: "https://ssuksak.github.io/weed_puller/icon_600x600.png",

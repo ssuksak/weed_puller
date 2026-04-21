@@ -424,10 +424,10 @@ resize();
 
 // ============ WEED TYPES ============
 const TYPES = [
-  { id: 0, name: '민들레', bg: '#B5D8B8', face: '#E2F0E4', accent: '#6BA37A', expr: 'happy', headDeco: 'dandelion' },
-  { id: 1, name: '쇠비름', bg: '#E8A8A0', face: '#F8E0DC', accent: '#C06060', expr: 'laugh', headDeco: 'purslane' },
-  { id: 2, name: '바랭이', bg: '#88C0A0', face: '#D0E8D8', accent: '#4D8868', expr: 'wink', headDeco: 'crabgrass' },
-  { id: 3, name: '명아주', bg: '#A8A0C8', face: '#E4E0F0', accent: '#706098', expr: 'surprised', headDeco: 'goosefoot' },
+  { id: 0, name: '민들레', bg: '#F0D060', face: '#FFF4C8', accent: '#C8A030', expr: 'happy', headDeco: 'dandelion' },
+  { id: 1, name: '쇠비름', bg: '#E88888', face: '#FFD8D0', accent: '#C05050', expr: 'laugh', headDeco: 'purslane' },
+  { id: 2, name: '바랭이', bg: '#78B890', face: '#D0F0D8', accent: '#408860', expr: 'wink', headDeco: 'crabgrass' },
+  { id: 3, name: '명아주', bg: '#A898D0', face: '#E0D8F0', accent: '#685898', expr: 'surprised', headDeco: 'goosefoot' },
 ];
 
 // ============ CELL ============
