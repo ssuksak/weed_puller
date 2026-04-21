@@ -1776,15 +1776,15 @@ function endGame() {
     const extraEl = document.getElementById('result-extra');
     if (extraEl) {
       const savedName = localStorage.getItem('weedpuller_name') || '';
+      const autoSaved = userHash ? '✅ 기록 자동 저장됨' : '';
       extraEl.innerHTML =
+        `<div style="margin-bottom:6px;font-size:12px;color:#4A7C59">${autoSaved}</div>` +
         `<div style="margin-bottom:8px;font-size:13px;color:#8B95A1">최고기록: ${highScore}점</div>` +
-        `<div style="display:flex;gap:6px;margin-bottom:10px">` +
-          `<input id="rank-name" type="text" maxlength="20" placeholder="닉네임 입력" value="${savedName}" style="flex:1;padding:10px 12px;border:1.5px solid #E5E8EB;border-radius:12px;font-size:14px;font-family:Jua,sans-serif;outline:none;text-align:center">` +
-          `<button id="btn-rank" style="background:#3182F6;color:#FFF;border:none;border-radius:12px;padding:10px 16px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:Jua,sans-serif">등록</button>` +
-        `</div>` +
+        `<input id="rank-name" type="text" maxlength="20" placeholder="닉네임 입력" value="${savedName}" style="width:100%;padding:10px 12px;border:1.5px solid #E5E8EB;border-radius:10px;font-size:14px;font-family:Jua,sans-serif;outline:none;text-align:center;margin-bottom:6px;box-sizing:border-box">` +
+        `<button id="btn-rank" style="background:var(--farm-green,#4A7C59);color:#FFF;border:none;border-radius:10px;padding:10px 0;font-size:14px;font-weight:700;cursor:pointer;font-family:Jua,sans-serif;width:100%;margin-bottom:8px">닉네임 등록</button>` +
         `<div id="rank-msg" style="font-size:12px;color:#8B95A1;margin-bottom:8px"></div>` +
         `<div id="rank-list" style="font-size:12px;color:#4E5968;margin-bottom:10px;max-height:120px;overflow-y:auto"></div>` +
-        `<button id="btn-share" style="background:none;border:1px solid #E5E8EB;border-radius:12px;padding:8px 0;width:100%;font-size:13px;font-weight:600;color:#8B95A1;cursor:pointer">📤 공유</button>`;
+        `<button id="btn-share" style="background:none;border:1px solid #E5E8EB;border-radius:10px;padding:8px 0;width:100%;font-size:13px;font-weight:600;color:#8B95A1;cursor:pointer">📤 공유</button>`;
 
       // 등록 버튼
       document.getElementById('btn-rank')?.addEventListener('click', async () => {
