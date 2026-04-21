@@ -9,10 +9,10 @@ var global = typeof globalThis !== 'undefined' ? globalThis : typeof global !== 
     host: ''
   };
   global.__appsInToss = {
-    deploymentId: "019db015-7530-7a27-8cc4-a96d2d03488e",
+    deploymentId: "019db027-e09d-78ce-bd18-287f7dca30b1",
     brandDisplayName: "\uBF51\uC544\uB77C \uC7A1\uCD08",
     brandPrimaryColor: "#4A7C59",
-    brandIcon: "/icon_600x600.png",
+    brandIcon: "https://ssuksak.github.io/weed_puller/icon_600x600.png",
     webViewType: "partner",
     navigationBar: "{\"withBackButton\":true,\"withHomeButton\":false}"
   };
@@ -132,10 +132,10 @@ if (global.__MICRO_FRONTEND__ == null) {
     host: ''
   };
   global.__appsInToss = {
-    deploymentId: "019db015-7530-7a27-8cc4-a96d2d03488e",
+    deploymentId: "019db027-e09d-78ce-bd18-287f7dca30b1",
     brandDisplayName: "\uBF51\uC544\uB77C \uC7A1\uCD08",
     brandPrimaryColor: "#4A7C59",
-    brandIcon: "/icon_600x600.png",
+    brandIcon: "https://ssuksak.github.io/weed_puller/icon_600x600.png",
     webViewType: "partner",
     navigationBar: "{\"withBackButton\":true,\"withHomeButton\":false}"
   };

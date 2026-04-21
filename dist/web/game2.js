@@ -7,6 +7,28 @@
 const SUPABASE_URL = 'https://puwthqzbounohrdmacgo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1d3RocXpib3Vub2hyZG1hY2dvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMjA2MzMsImV4cCI6MjA5MDg5NjYzM30.AxUjNNTnLv2xVNC_UMFE3o0x0-s_tFJnRcMr7mBNOy0';
 
+// ============ 유저 식별키 (앱인토스) ============
+let userHash = null;
+
+async function initUserHash() {
+  try {
+    // 앱인토스 SDK에서 getUserKeyForGame import
+    const { getUserKeyForGame } = await import('@apps-in-toss/web-framework');
+    const result = await getUserKeyForGame();
+    if (result && result.type === 'HASH') {
+      userHash = result.hash;
+    }
+  } catch (e) {
+    // 앱인토스 밖 (웹 브라우저)에서는 localStorage 폴백
+    userHash = localStorage.getItem('weedpuller_user_hash');
+    if (!userHash) {
+      userHash = 'web_' + Math.random().toString(36).slice(2, 10);
+      localStorage.setItem('weedpuller_user_hash', userHash);
+    }
+  }
+}
+initUserHash();
+
 async function submitScore(nickname, score, maxCombo, surviveTime) {
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/weed_puller_rankings`, {
@@ -22,10 +44,18 @@ async function submitScore(nickname, score, maxCombo, surviveTime) {
         score,
         max_combo: maxCombo,
         survive_time: surviveTime,
+        user_hash: userHash || null,
       }),
     });
     return res.ok;
   } catch (e) { return false; }
+}
+
+// 자동 점수 저장 (닉네임 없이)
+async function autoSubmitScore(score, maxCombo, surviveTime) {
+  if (!userHash) return false;
+  const savedName = localStorage.getItem('weedpuller_name') || userHash.slice(0, 8);
+  return submitScore(savedName, score, maxCombo, surviveTime);
 }
 
 async function getTopRankings(limit = 10) {
@@ -1719,6 +1749,9 @@ function endGame() {
     localStorage.setItem('weedpuller_hs', highScore);
     sfx('newrecord');
   }
+
+  // 자동 점수 저장 (유저 해시키로)
+  autoSubmitScore(score, maxCombo, Math.floor(elapsed));
 
   let emoji, title;
   if (isNewRecord) { emoji = '🎉'; title = '밭의 전설!'; }
