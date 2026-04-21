@@ -4,8 +4,8 @@
  */
 
 // ============ SUPABASE RANKING ============
-const SUPABASE_URL = 'https://puwthqzbounohrdmacgo.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1d3RocXpib3Vub2hyZG1hY2dvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMjA2MzMsImV4cCI6MjA5MDg5NjYzM30.AxUjNNTnLv2xVNC_UMFE3o0x0-s_tFJnRcMr7mBNOy0';
+const SUPABASE_URL = 'https://wnguvwgmnlhuepgnsjxn.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InduZ3V2d2dtbmxodWVwZ25zanhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3NTMwODAsImV4cCI6MjA5MjMyOTA4MH0.QZnDpoSvPbdcv4wRRRsmkb41ewyJjF_jjex5Y4GwhXc';
 
 // ============ 유저 식별키 (앱인토스) ============
 let userHash = null;
