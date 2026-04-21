@@ -1,0 +1,17 @@
+{
+  "name": "weedpuller",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "granite dev",
+    "build": "ait build",
+    "deploy": "ait deploy"
+  },
+  "dependencies": {
+    "@apps-in-toss/web-framework": "^2.4.7"
+  },
+  "devDependencies": {
+    "vite": "^6.2.0"
+  }
+}
