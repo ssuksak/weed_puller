@@ -1342,7 +1342,6 @@ function onDown(e) {
   if (showTutorial && gameRunning) {
     e.preventDefault?.();
     showTutorial = false;
-    localStorage.setItem('weedpuller_tutorial', '1');
     startBGM();
     timerInterval = setInterval(() => {
       timeLeft--; updateHUD();
@@ -1779,10 +1778,20 @@ function startCountdown() {
 function startGame() {
   gameRunning = true; timeLeft = 30; resize(); updateHUD();
   clearInterval(timerInterval);
-  if (!localStorage.getItem('weedpuller_tutorial')) {
-    showTutorial = true; // 타이머·BGM은 터치 후 시작
-    return;
-  }
+  // 매번 간단한 튜토리얼 2초 표시 후 자동 시작
+  showTutorial = true;
+  setTimeout(() => {
+    if (showTutorial) {
+      showTutorial = false;
+      startBGM();
+      timerInterval = setInterval(() => {
+        timeLeft--; updateHUD();
+        if (timeLeft <= 10 && timeLeft > 0) sfx('countdown');
+        if (timeLeft <= 0) endGame();
+      }, 1000);
+    }
+  }, 2000);
+  return;
   startBGM();
   timerInterval = setInterval(() => {
     timeLeft--; updateHUD();
