@@ -1,5 +1,4 @@
 node_modules/
 dist/
-*.ait
 .granite/
 package-lock.json
