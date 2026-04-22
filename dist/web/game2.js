@@ -139,11 +139,11 @@ let soundEnabled = localStorage.getItem('weedpuller_sound') !== 'off';
 document.addEventListener('DOMContentLoaded', () => {
   const btn = document.getElementById('btn-sound');
   if (btn) {
-    btn.textContent = soundEnabled ? '🔊 사운드 ON' : '🔇 사운드 OFF';
+    btn.textContent = soundEnabled ? '🔊 ON' : '🔇 OFF';
     btn.addEventListener('click', () => {
       soundEnabled = !soundEnabled;
       localStorage.setItem('weedpuller_sound', soundEnabled ? 'on' : 'off');
-      btn.textContent = soundEnabled ? '🔊 사운드 ON' : '🔇 사운드 OFF';
+      btn.textContent = soundEnabled ? '🔊 ON' : '🔇 OFF';
       if (!soundEnabled && bgmPlaying) stopBGM();
     });
   }
