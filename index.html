@@ -41,7 +41,7 @@
 
     /* === Start Screen Farm Theme === */
     #start-screen {
-      overflow: hidden;
+      overflow-y: auto;
       background: #FFFDF5;
       background-image:
         /* 하늘 위쪽 그라데이션 */
@@ -179,7 +179,7 @@
       z-index: 1;
     }
 
-    canvas { display: block; }
+    canvas { display: block; position: relative; z-index: 1; }
 
     /* --- HUD --- */
     #hud {
@@ -578,7 +578,7 @@
   </style>
 </head>
 <body>
-  <canvas id="game"></canvas>
+  <canvas id="game" style="display:none"></canvas>
   <div id="fever-overlay"></div>
 
   <!-- HUD -->

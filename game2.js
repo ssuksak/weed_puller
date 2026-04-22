@@ -1742,6 +1742,7 @@ document.getElementById('btn-retry').addEventListener('click', (e) => {
 
 function startCountdown() {
   initAudio();
+  document.getElementById('game').style.display = 'block';
   document.getElementById('start-screen').classList.add('hidden');
   document.getElementById('result-screen').classList.add('hidden');
   document.getElementById('hud').classList.remove('hidden');
