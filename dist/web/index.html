@@ -39,6 +39,146 @@
       -webkit-tap-highlight-color: transparent;
     }
 
+    /* === Start Screen Farm Theme === */
+    #start-screen {
+      overflow-y: auto;
+      background: #FFFDF5;
+      background-image:
+        /* 하늘 위쪽 그라데이션 */
+        linear-gradient(180deg, #E8F4EC 0%, #FFFDF5 18%, #FFFDF5 65%, transparent 65%),
+        /* 잔디 언덕 */
+        radial-gradient(ellipse 120% 80px at 30% 100%, #7CB587 0%, transparent 70%),
+        radial-gradient(ellipse 140% 60px at 75% 100%, #6BA876 0%, transparent 65%),
+        /* 흙 바닥 */
+        linear-gradient(0deg, #C4A265 0%, #D4B87A 3%, #E0CFA0 5%, transparent 8%);
+      position: relative;
+    }
+    #start-screen::before {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 90px;
+      background:
+        /* 풀숲 텍스처 */
+        radial-gradient(ellipse 18px 22px at 10% 90%, #5A9B6A 0%, transparent 70%),
+        radial-gradient(ellipse 14px 20px at 22% 85%, #6BAF7C 0%, transparent 70%),
+        radial-gradient(ellipse 20px 18px at 45% 92%, #5A9B6A 0%, transparent 70%),
+        radial-gradient(ellipse 16px 24px at 60% 87%, #78B888 0%, transparent 65%),
+        radial-gradient(ellipse 22px 20px at 80% 90%, #6BAF7C 0%, transparent 70%),
+        radial-gradient(ellipse 12px 18px at 92% 86%, #5A9B6A 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    /* 떠다니는 잎사귀 장식 */
+    #start-screen::after {
+      content: '🍃';
+      position: absolute;
+      top: 60px; right: 24px;
+      font-size: 22px;
+      opacity: 0.5;
+      animation: leafFloat 4s ease-in-out infinite;
+      pointer-events: none;
+      z-index: 0;
+    }
+    @keyframes leafFloat {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      25% { transform: translateY(-6px) rotate(8deg); }
+      75% { transform: translateY(4px) rotate(-5deg); }
+    }
+
+    .start-title-area {
+      position: relative;
+      z-index: 1;
+      margin-bottom: 6px;
+      margin-top: 12px;
+      text-align: left;
+      padding-left: 8%;
+      width: 100%;
+    }
+    .start-title-main {
+      font-size: 32px;
+      font-weight: 900;
+      color: var(--farm-green);
+      transform: rotate(-2deg);
+      display: inline-block;
+      text-shadow: 2px 2px 0 #D4E8D9;
+      letter-spacing: -1px;
+      line-height: 1.1;
+    }
+    .start-title-main .accent {
+      color: var(--farm-red);
+      font-size: 36px;
+    }
+    .start-title-sub {
+      font-size: 13px;
+      color: var(--farm-gray500);
+      margin-top: 4px;
+      padding-left: 4px;
+      letter-spacing: 0.5px;
+    }
+    .start-title-weed {
+      display: inline-block;
+      font-size: 28px;
+      margin-left: 6px;
+      animation: weedWiggle 1.8s ease-in-out infinite;
+      transform-origin: bottom center;
+    }
+    @keyframes weedWiggle {
+      0%, 100% { transform: rotate(0deg); }
+      20% { transform: rotate(12deg); }
+      40% { transform: rotate(-8deg); }
+      60% { transform: rotate(5deg); }
+      80% { transform: rotate(-3deg); }
+    }
+
+    /* 시작 버튼 강화 */
+    #start-screen .btn-primary {
+      position: relative;
+      z-index: 1;
+      background: linear-gradient(180deg, #5A9B6A 0%, #4A7C59 100%);
+      font-size: 21px;
+      padding: 16px 0;
+      border-radius: 14px;
+      box-shadow:
+        0 4px 0 #3A6349,
+        0 6px 12px rgba(74,124,89,0.3);
+      transition: transform 0.1s, box-shadow 0.1s;
+      border: 2px solid #6BAF7C;
+    }
+    #start-screen .btn-primary:active {
+      transform: translateY(3px) scale(0.98);
+      box-shadow:
+        0 1px 0 #3A6349,
+        0 2px 4px rgba(74,124,89,0.2);
+    }
+    #start-screen .btn-primary:hover {
+      background: linear-gradient(180deg, #6BAF7C 0%, #5A9B6A 100%);
+    }
+
+    /* 플레이 방법 카드 개선 */
+    #start-screen .how-to-play {
+      position: relative;
+      z-index: 1;
+      background: linear-gradient(135deg, #FFFDF5 0%, #F5EDD6 100%);
+      border: 1.5px dashed var(--farm-green-light);
+      border-radius: 16px;
+    }
+    #start-screen .how-to-play-title {
+      color: var(--farm-brown);
+    }
+    #start-screen .how-to-row {
+      padding: 6px 0;
+    }
+    #start-screen .how-to-row:not(:last-child) {
+      border-bottom: 1px dashed var(--farm-gray100);
+    }
+
+    /* 랭킹 카드 z-index */
+    #start-ranking {
+      position: relative;
+      z-index: 1;
+    }
+
     canvas { display: block; }
 
     /* --- HUD --- */
@@ -117,12 +257,6 @@
       transition: opacity 0.3s;
     }
 
-    #start-screen {
-      background: #FFFFFF;
-      justify-content: flex-start;
-      padding-top: 24px;
-      overflow-y: auto;
-    }
     .game-title {
       font-size: 64px;
       margin-bottom: 4px;
@@ -458,27 +592,30 @@
   <!-- Start Screen -->
   <div id="start-screen" class="screen-overlay" style="padding-top:16px;justify-content:flex-start">
     <!-- 사운드 버튼: 우측 상단 -->
-    <button id="btn-sound" style="position:absolute;top:10px;right:10px;background:var(--farm-cream);border:1px solid var(--farm-gray100);border-radius:8px;padding:5px 10px;font-size:11px;color:var(--farm-gray500);cursor:pointer;pointer-events:auto;font-family:Jua,sans-serif;z-index:21">🔊 ON</button>
+    <button id="btn-sound" style="position:absolute;top:10px;right:10px;background:rgba(255,253,245,0.85);border:1px solid var(--farm-gray100);border-radius:8px;padding:5px 10px;font-size:11px;color:var(--farm-gray500);cursor:pointer;pointer-events:auto;font-family:Jua,sans-serif;z-index:21">🔊 ON</button>
 
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-      <span style="font-size:36px">🌿</span>
-      <span style="font-size:22px;font-weight:900;color:var(--farm-black)">뽑아라! 잡초</span>
+    <div class="start-title-area">
+      <div>
+        <span class="start-title-main"><span class="accent">뽑</span>아라! 잡초</span>
+        <span class="start-title-weed">🌱</span>
+      </div>
+      <div class="start-title-sub">🧑‍🌾 도시농부의 잡초 대작전!</div>
     </div>
 
-    <button class="btn-primary" id="btn-start" style="padding:14px 0;font-size:18px;margin-bottom:10px;width:min(320px,90%)">시작하기</button>
+    <button class="btn-primary" id="btn-start" style="margin-bottom:12px;width:min(320px,90%)">🌿 잡초 뽑으러 가기!</button>
 
-    <div class="how-to-play" style="padding:10px 16px;margin-bottom:8px;width:min(320px,90%)">
-      <div class="how-to-play-title" style="margin-bottom:6px;font-size:12px">플레이 방법</div>
-      <div class="how-to-row" style="padding:4px 0">
-        <div class="how-to-icon" style="font-size:18px;width:26px">👆</div>
+    <div class="how-to-play" style="padding:12px 16px;margin-bottom:8px;width:min(320px,90%)">
+      <div class="how-to-play-title" style="margin-bottom:8px;font-size:12px">🧤 플레이 방법</div>
+      <div class="how-to-row" style="padding:6px 0">
+        <div class="how-to-icon" style="font-size:20px;width:30px">👆</div>
         <div class="how-to-text" style="font-size:12px"><strong>같은 잡초 3개+</strong> 쓱~ 그어서 뽑기!</div>
       </div>
-      <div class="how-to-row" style="padding:4px 0">
-        <div class="how-to-icon" style="font-size:18px;width:26px">🧨</div>
+      <div class="how-to-row" style="padding:6px 0">
+        <div class="how-to-icon" style="font-size:20px;width:30px">🧨</div>
         <div class="how-to-text" style="font-size:12px"><strong>폭탄잡초</strong> → 빠르게 3번 연타!</div>
       </div>
-      <div class="how-to-row" style="padding:4px 0">
-        <div class="how-to-icon" style="font-size:18px;width:26px">⏱</div>
+      <div class="how-to-row" style="padding:6px 0">
+        <div class="how-to-icon" style="font-size:20px;width:30px">⏱</div>
         <div class="how-to-text" style="font-size:12px"><strong>30초!</strong> 많이 그을수록 시간 보너스!</div>
       </div>
     </div>
