@@ -337,8 +337,8 @@
     .ranking-header {
       background: var(--farm-green);
       color: #FFF;
-      padding: 14px 20px;
-      font-size: 16px;
+      padding: 10px 16px;
+      font-size: 14px;
       font-weight: 700;
       letter-spacing: 0.5px;
       display: flex;
@@ -349,8 +349,8 @@
       font-size: 22px;
     }
     .ranking-body {
-      padding: 8px 16px 12px;
-      max-height: 260px;
+      padding: 6px 12px 8px;
+      max-height: 320px;
       overflow-y: auto;
       pointer-events: auto;
     }
@@ -456,31 +456,25 @@
   <div id="hud-level" class="hidden"></div>
 
   <!-- Start Screen -->
-  <div id="start-screen" class="screen-overlay">
+  <div id="start-screen" class="screen-overlay" style="padding-top:16px;justify-content:flex-start">
     <!-- 사운드 버튼: 우측 상단 -->
-    <button id="btn-sound" style="position:absolute;top:12px;right:12px;background:var(--farm-cream);border:1px solid var(--farm-gray100);border-radius:8px;padding:6px 12px;font-size:12px;color:var(--farm-gray500);cursor:pointer;pointer-events:auto;font-family:Jua,sans-serif;z-index:21">🔊 ON</button>
+    <button id="btn-sound" style="position:absolute;top:10px;right:10px;background:var(--farm-cream);border:1px solid var(--farm-gray100);border-radius:8px;padding:5px 10px;font-size:11px;color:var(--farm-gray500);cursor:pointer;pointer-events:auto;font-family:Jua,sans-serif;z-index:21">🔊 ON</button>
 
-    <div class="game-title" style="font-size:48px;margin-bottom:2px">🌿</div>
-    <div class="game-title-text" style="font-size:24px;margin-bottom:10px">뽑아라! 잡초</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <span style="font-size:36px">🌿</span>
+      <span style="font-size:22px;font-weight:900;color:var(--farm-black)">뽑아라! 잡초</span>
+    </div>
 
-    <div class="how-to-play" style="padding:12px 16px;margin-bottom:10px">
-      <div class="how-to-play-title" style="margin-bottom:8px;font-size:13px">플레이 방법</div>
-      <div class="how-to-row" style="padding:5px 0">
-        <div class="how-to-icon" style="font-size:20px;width:30px">👆</div>
-        <div class="how-to-text" style="font-size:12px"><strong>같은 잡초 3개+</strong> 쓱~ 그어서 뽑기!</div>
-      </div>
-      <div class="how-to-row" style="padding:5px 0">
-        <div class="how-to-icon" style="font-size:20px;width:30px">🧨</div>
-        <div class="how-to-text" style="font-size:12px"><strong>폭탄잡초</strong> → 빠르게 3번 연타!</div>
-      </div>
-      <div class="how-to-row" style="padding:5px 0">
-        <div class="how-to-icon" style="font-size:20px;width:30px">⏱</div>
-        <div class="how-to-text" style="font-size:12px">제한시간 <strong>30초!</strong> 콤보 = 시간 보너스!</div>
+    <div class="how-to-play" style="padding:8px 14px;margin-bottom:8px;width:min(320px,90%)">
+      <div style="display:flex;gap:10px;justify-content:center;font-size:11px;color:var(--farm-gray700)">
+        <span>👆 <strong>3개+</strong> 쓱 긋기</span>
+        <span>🧨 폭탄 <strong>3탭</strong></span>
+        <span>⏱ <strong>30초</strong> + 콤보보너스</span>
       </div>
     </div>
 
-    <button class="btn-primary" id="btn-start" style="padding:14px 64px;font-size:18px;margin-bottom:10px">시작하기</button>
-    <div id="start-ranking"></div>
+    <button class="btn-primary" id="btn-start" style="padding:14px 0;font-size:18px;margin-bottom:8px;width:min(320px,90%)">시작하기</button>
+    <div id="start-ranking" style="width:min(320px,90%)"></div>
   </div>
 
   <!-- Result Screen -->
