@@ -119,7 +119,7 @@ async function autoSubmitScore(scoreVal, maxComboVal, surviveTime) {
 async function getTopRankings(limit = 10) {
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/weed_puller_rankings?select=nickname,score,max_combo,survive_time,created_at&order=score.desc&limit=${limit}`,
+      `${SUPABASE_URL}/rest/v1/weed_puller_rankings?select=nickname,score,max_combo,survive_time,created_at,user_hash&order=score.desc&limit=${limit}`,
       { headers: { 'apikey': SUPABASE_KEY } }
     );
     return res.ok ? await res.json() : [];
@@ -1891,20 +1891,30 @@ async function loadRankings() {
 (async function loadStartRanking() {
   const el = document.getElementById('start-ranking');
   if (!el) return;
-  el.innerHTML = '<div style="color:#8B95A1;font-size:12px">랭킹 로딩 중...</div>';
+  el.innerHTML = '<div class="ranking-header"><span class="ranking-badge">🏆</span> 전국 농부 랭킹</div>' +
+    '<div class="ranking-body"><div style="color:#8B95A1;font-size:12px;text-align:center;padding:12px">랭킹 로딩 중...</div></div>';
   const rankings = await getTopRankings(20);
   if (!rankings.length) {
-    el.innerHTML = '<div style="color:#8B95A1;font-size:13px;text-align:center">첫 번째 기록을 남겨보세요! 🌱</div>';
+    el.innerHTML = '<div class="ranking-header"><span class="ranking-badge">🏆</span> 전국 농부 랭킹</div>' +
+      '<div class="ranking-empty"><div class="empty-icon">🌱</div>아직 기록이 없어요!<br><strong>첫 번째 전국 1위에 도전하세요!</strong></div>';
     return;
   }
-  el.innerHTML = '<div style="font-size:14px;font-weight:700;color:#191F28;margin-bottom:8px">🏆 TOP 20</div>' +
-    `<div style="max-height:240px;overflow-y:auto;pointer-events:auto">` +
-    rankings.map((r, i) => {
-      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `<span style="color:#8B95A1;font-size:12px;width:22px;display:inline-block;text-align:center">${i+1}</span>`;
-      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;${i < rankings.length - 1 ? 'border-bottom:1px solid #E5E8EB;' : ''}${i < 3 ? 'font-weight:700;' : ''}">`+
-        `<span style="color:#191F28;font-size:13px">${medal} ${r.nickname}</span>`+
-        `<span style="color:#4A7C59;font-size:13px;font-weight:700">${r.score.toLocaleString()}점</span></div>`;
-    }).join('') + `</div>`;
+  const rows = rankings.map((r, i) => {
+    const isMe = userHash && r.user_hash === userHash;
+    let rankClass = 'rank-normal';
+    if (i === 0) rankClass = 'rank-gold';
+    else if (i === 1) rankClass = 'rank-silver';
+    else if (i === 2) rankClass = 'rank-bronze';
+    const meClass = isMe ? ' rank-me' : '';
+    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+    const numSpan = i >= 3 ? `<span class="rank-num">${i + 1}</span>` : '';
+    const meTag = isMe ? ' <span style="font-size:10px;color:var(--farm-green);vertical-align:middle">← 나</span>' : '';
+    return `<div class="rank-row ${rankClass}${meClass}">` +
+      `<span class="rank-name">${medal}${numSpan} ${r.nickname}${meTag}</span>` +
+      `<span class="rank-score">${r.score.toLocaleString()}점</span></div>`;
+  }).join('');
+  el.innerHTML = '<div class="ranking-header"><span class="ranking-badge">🏆</span> 전국 농부 랭킹</div>' +
+    `<div class="ranking-body">${rows}</div>`;
 })();
 
 requestAnimationFrame(loop);
